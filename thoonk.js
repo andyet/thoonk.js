@@ -18,7 +18,7 @@ function Thoonk() {
     this.mredis.on("error", function(error) {
         console.log("Error " + err);
     });
-    //on disconnect, reconn
+    //TODO: on disconnect, reconn
 }
 
 //map the event to the subscription callback
@@ -59,13 +59,13 @@ Thoonk.prototype.handle_message  = function(channel, msg) {
 
 //create a feed
 Thoonk.prototype.create = function(name, config) {
-    this.mredis.sadd("feeds", name, this.event_handler(function(err, result) {
+    this.mredis.sadd("feeds", name, function(err, result) {
         //if we added it, configure it
         if(result) { 
             console.log("setting config...")
             this.set_config(name, config, true);
          }
-    }));
+    }.bind(this));
 }
 
 //update the config
