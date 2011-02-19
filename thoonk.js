@@ -1,5 +1,6 @@
 uuid = require("node-uuid");
 redis = require("redis");
+EventEmitter = require("events").EventEmitter;
 
 function Thoonk() {
     this.mredis = redis.createClient();
@@ -20,6 +21,15 @@ function Thoonk() {
     });
     //TODO: on disconnect, reconn
 }
+
+//extend Thoonk with EventEmitter
+Thoonk.super_ = EventEmitter;
+Thoonk.prototype = Object.create(EventEmitter.prototype, {
+    constructor: {
+        value: Thoonk,
+        enumerable: false,
+    }
+});
 
 //map the event to the subscription callback
 Thoonk.prototype.handle_message  = function(channel, msg) {
@@ -64,6 +74,8 @@ Thoonk.prototype.create = function(name, config) {
         if(result) { 
             console.log("setting config...")
             this.set_config(name, config, true);
+         } else {
+            this.emit("ready:" + name);
          }
     }.bind(this));
 }
@@ -72,6 +84,7 @@ Thoonk.prototype.create = function(name, config) {
 Thoonk.prototype.set_config = function(feed, config, _newfeed) {
     this.mredis.set("feed.config:" + feed, JSON.stringify(config));
     this.feeds[feed] = config;
+    this.emit("ready:" + feed);
     if(!_newfeed) {
         this.mredis.publish("conffeed", feed + "\x00" + this.instance);
     }
@@ -112,11 +125,17 @@ function Feed(thoonk, name, config) {
     this.mredis = this.thoonk.mredis; //I'm lazy
     this.lredis = this.thoonk.lredis;
     this.name = name;
+    this.thoonk.on("ready:" + name, this.ready.bind(this));
+
     var exists = this.thoonk.update_config(this.name);
     if(!exists) {
         this.thoonk.create(name, config);
     }
     //check does the feed exist? Make it if not?
+}
+
+function feed_ready() {
+    this.emit("ready");
 }
 
 function feed_publish(item, id) {
@@ -166,11 +185,22 @@ function feed_subscribe(callback) {
     this.thoonk.callbacks[this.name] = callback;
 }
 
+
+//extend Thoonk with EventEmitter
+Feed.super_ = EventEmitter;
+Feed.prototype = Object.create(EventEmitter.prototype, {
+    constructor: {
+        value: Feed,
+        enumerable: false,
+    }
+});
+
 Feed.prototype.publish = feed_publish;
 Feed.prototype.retract = feed_retract;
 Feed.prototype.get_ids = feed_get_ids;
 Feed.prototype.get_item = feed_get_item;
 Feed.prototype.subscribe = feed_subscribe;
+Feed.prototype.ready = feed_ready;
 
 exports.Thoonk = Thoonk;
 exports.Feed = Feed;
