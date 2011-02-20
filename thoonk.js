@@ -126,7 +126,6 @@ function Feed(thoonk, name, config) {
     this.lredis = this.thoonk.lredis;
     this.name = name;
     this.thoonk.on("ready:" + name, this.ready.bind(this));
-
     var exists = this.thoonk.update_config(this.name);
     if(!exists) {
         this.thoonk.create(name, config);
