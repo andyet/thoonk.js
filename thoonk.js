@@ -18,7 +18,7 @@ function Thoonk() {
     this.feeds = {};
 
     this.mredis.on("error", function(error) {
-        console.log("Error " + err);
+        console.log("Error " + error);
     });
     //TODO: on disconnect, reconn
 }
@@ -120,6 +120,11 @@ Thoonk.prototype.feed = function(name, config) {
 Thoonk.prototype.queue = function(name, config) {
     var queue = new Queue(this, name, config);
     return queue;
+}
+
+Thoonk.prototype.job = function(name, config) {
+    var job = new Job(this, name, config);
+    return job;
 }
 
 Thoonk.prototype.quit = function() {
@@ -288,7 +293,7 @@ function job_get(timeout, callback, timeout_callback) {
         if(!err) {
             var d = new Date()
             var id = result[1];
-            this.mredis.hset("feed.running:" + this.name, d.getTime());
+            this.mredis.hset("feed.running:" + this.name, id, d.getTime());
             this.mredis.hget("feed.items:" + this.name, id, function(err, result) {
                 callback(result, id);
             }.bind(this));
@@ -298,22 +303,26 @@ function job_get(timeout, callback, timeout_callback) {
     }.bind(this));
 }
 
-function job_finish(id, result, callback, error_callback) {
+function job_finish(id, setresult, callback, error_callback) {
     var id = id;
     this.mredis.hdel("feed.running:" + this.name, id, function(err, result) {
         if(!err) {
-            if(result !== null && result !== undefined) {
+            if(setresult !== null && setresult !== undefined) {
                 this.mredis.hget("feed.items:" + this.name, id, function(err, result) {
                     if(!err) {
-                        this.mredis.rpush("feed.jobinished:" + this.name + "\x00" + id, result);
+                        this.mredis.lpush("feed.jobinished:" + this.name + "\x00" + id, setresult);
                     }
                 });
             }
             this.mredis.hdel("feed.items:" + this.name, id, function(err, result) {
                 if(err) {
-                    error_callback(id);
+                    if(error_callback) {
+                        error_callback(id);
+                    }
                 } else {
-                    callback(id);
+                    if(callback) {
+                        callback(id);
+                    }
                 }
             }.bind(this));
         } else {
