@@ -6,6 +6,7 @@ happy.once("ready", function () {
     happy.subscribe(function(id, msg) {
         console.log("happy -> [" + id + "]: " + msg);
     });
+    console.log("starting...");
     happy.publish("neehaw", "1");
     happy.publish("neehaw2", "1");
     happy.publish("neehaw3", "1");
@@ -24,8 +25,8 @@ var queue = thoonk.queue("queue", {'type': 'queue'});
 queue.once("ready", function () {
     console.log(thoonk.feeds);
     console.log("---> " + queue.name);
+    queue.put("crraaaaap");
     queue.get(0, function(item, id) {
         console.log("Got!!!! [" + id + "]: " + item);
     });
-    queue.put("crraaaaap");
 });

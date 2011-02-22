@@ -3,9 +3,10 @@ redis = require("redis");
 EventEmitter = require("events").EventEmitter;
 
 function Thoonk() {
-    this.mredis = redis.createClient();
+    EventEmitter.call(this);
     this.lredis = redis.createClient();
     this.lredis.subscribe("newfeed", "delfeed", "conffeed");
+    this.mredis = redis.createClient();
 
     this.callbacks = {};
 
@@ -33,7 +34,6 @@ Thoonk.prototype = Object.create(EventEmitter.prototype, {
 
 //map the event to the subscription callback
 Thoonk.prototype.handle_message  = function(channel, msg) {
-
     if(channel == "newfeed") {
         //feed, instance
         var args = msg.split('\x00');
@@ -164,7 +164,7 @@ function feed_publish(item, id) {
         this.mredis.hset("feed.items:" + this.name, id, item)
         this.mredis.lpush("feed.ids:" + this.name, id, function(err,reply) { this.published(item, id); }.bind(this))
     } else {
-        this.mredis.hexists("feed.items:" + this.name, id, function(err,reply) {
+        this.mredis.send_command("hexists", ["feed.items:" + this.name, id], function(err,reply) {
             if(!reply) {
                 //if the id doesn't already exist
                 this.mredis.hset("feed.items:" + this.name, id, item)
@@ -211,7 +211,6 @@ function feed_subscribe(callback) {
     this.thoonk.callbacks[this.name] = callback;
 }
 
-
 //extend Feed with EventEmitter
 Feed.super_ = EventEmitter;
 Feed.prototype = Object.create(EventEmitter.prototype, {
@@ -237,21 +236,25 @@ function queue_publish(item) {
     id = uuid()
     this.mredis.multi()
     .hset("feed.items:" + this.name, id, item)
-    .lpush("feed.ids:" + this.name, id, function(err,reply) { this.published(item, id); }.bind(this))
+    .lpush("feed.ids:" + this.name, id)
     .exec(function(err, replies) {
         //TODO error handler
     });
 }
 
-function queue_get(timeout, callback) {
+function queue_get(timeout, callback, timeout_callback) {
     var callback = callback;
     if(!timeout) { var timeout = 0 };
     this.mredis.brpop("feed.ids:" + this.name, timeout, function(err, result) {
-        var id = result[1];
-        this.mredis.hget("feed.items:" + this.name, id, function(err, result) {
-            callback(result, id);
-            this.mredis.hdel("feed.items:" + this.name, result);
-        }.bind(this));
+        if(!err) {
+            var id = result[1];
+            this.mredis.hget("feed.items:" + this.name, id, function(err, result) {
+                callback(result, id);
+                this.mredis.hdel("feed.items:" + this.name, result);
+            }.bind(this));
+        } else {
+            timeout_callback()
+        }
     }.bind(this));
 }
 
@@ -267,6 +270,100 @@ Queue.prototype.publish = queue_publish;
 Queue.prototype.put = queue_publish;
 Queue.prototype.get = queue_get;
 
+function Job(thoonk, name, config) {
+    Queue.call(this, thoonk, name, config);
+}
+
+Job.super_ = Queue;
+Job.prototype = Object.create(Queue.prototype, {
+    constructor: {
+        value: Job,
+        enumerable: false,
+    }
+});
+
+function job_get(timeout, callback, timeout_callback) {
+    if(!timeout) { var timeout = 0; }
+    this.mredis.brpop("feed.ids:" + this.name, timeout, function(err, result) {
+        if(!err) {
+            var d = new Date()
+            var id = result[1];
+            this.mredis.hset("feed.running:" + this.name, d.getTime());
+            this.mredis.hget("feed.items:" + this.name, id, function(err, result) {
+                callback(result, id);
+            }.bind(this));
+        } else {
+            timeout_callback();
+        }
+    }.bind(this));
+}
+
+function job_finish(id, result, callback, error_callback) {
+    var id = id;
+    this.mredis.hdel("feed.running:" + this.name, id, function(err, result) {
+        if(!err) {
+            if(result !== null && result !== undefined) {
+                this.mredis.hget("feed.items:" + this.name, id, function(err, result) {
+                    if(!err) {
+                        this.mredis.rpush("feed.jobinished:" + this.name + "\x00" + id, result);
+                    }
+                });
+            }
+            this.mredis.hdel("feed.items:" + this.name, id, function(err, result) {
+                if(err) {
+                    error_callback(id);
+                } else {
+                    callback(id);
+                }
+            }.bind(this));
+        } else {
+            error_callback(id);
+        }
+    }.bind(this));
+}
+
+function job_get_result(id, timeout, callback, timeout_callback) {
+    this.mredis.blpop("feed.jobfinished:" + this.name + "\x00" + id, timeout, function(err, result) {
+        if(err) {
+            timeout_callback(id);
+        } else {
+            callback(result);
+        }
+    }.bind(this));
+}
+
+function job_cancel(id) {
+    this.mredis.hdel("feed.running:" + this.name, id, function(err, result) {
+        if(!err) {
+            this.mredis.rpush("feed.ids:" + this.name, id);
+        }
+    });
+}
+
+function job_stall(id) {
+    this.mredis.hdel("feed.running:" + this.name, id, function(err, result) {
+        if(!err) {
+            this.mredis.rpush("feed.stalled:" + this.name, id);
+        }
+    });
+}
+
+function job_retry(id) {
+    this.mredis.lrem("feed.stalled:" + this.name, 1, id, function(err, result) {
+        if(!err) {
+            this.mredis.rpush("feed.ids:" + this.name, id);
+        }
+    });
+}
+
+Job.prototype.get = job_get;
+Job.prototype.finish = job_finish;
+Job.prototype.get_result = job_get_result;
+Job.prototype.cancel = job_cancel;
+Job.prototype.stall = job_stall;
+Job.prototype.retry = job_retry;
+
 exports.Thoonk = Thoonk;
 exports.Feed = Feed;
 exports.Queue = Queue;
+exports.Job = Job;
