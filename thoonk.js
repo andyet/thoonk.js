@@ -310,7 +310,7 @@ function job_finish(id, setresult, callback, error_callback) {
             if(setresult !== null && setresult !== undefined) {
                 this.mredis.hget("feed.items:" + this.name, id, function(err, result) {
                     if(!err) {
-                        this.mredis.lpush("feed.jobinished:" + this.name + "\x00" + id, setresult);
+                        this.mredis.lpush("feed.jobfinished:" + this.name + "\x00" + id, setresult);
                     }
                 });
             }

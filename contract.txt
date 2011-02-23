@@ -40,11 +40,11 @@ Queue:
     publish/put:
         // id = generated uuid
         multi:
-            lpush feed.id:[feed] [id]
+            lpush feed.ids:[feed] [id]
             hset feed.items:[feed] [id] [item]
 
     get:
-        id = brpop feed.id:[feed] [timeout]
+        id = brpop feed.ids:[feed] [timeout]
         //if error, abort
         item = hget feed.items:[feed] [id]
         hdel feed.items:feed [id]
@@ -55,13 +55,15 @@ Job:
         // same as Queue
 
     get:
-        id = brpop feed.ids:[feed] [timeout]
-        //if error, abort
-        hset feed.running:[feed] [current time]
+        id = brpoplpush feed.ids:[feed] feed.running:[feed] [timeout]
+        //if error/timeout, abort
+        hset feed.claimed:[feed] [id] [epoch]
         item = hget feed:items[feed] [id]
 
     finish: //worker finishes job
-        hdel feed.running:[feed] [id]
+        lrem feed.running:[feed] 1 [id]
+        hdel feed.claimed:[feed] [id]
+        hdel feed.cancelled:[feed] [id]
         //optionally if publishing a result:
             item = hget feed.items:[feed] [id]
             rpush feed.jobfinished:[feed]:[id] [item]\x00[result]
@@ -71,16 +73,18 @@ Job:
         blpop feed:jobfinished:[feed]:[id] [timeout]
 
     cancel: //cancel a running job, will get retried
-        hdel feed:jobrunning:[feed] [id]
+        lrem feed:jobrunning:[feed] 1 [id]
+        incr feed.cancelled:[feed]
         // if fail, abort
         lpush feed.ids:[feed] [id]
 
     stall: //fail a running job semi-permantently and take it out of the running, but don't delete
-        hdel feed.running:[feed] [id]
+        lrem feed.running:[feed] 1 [id]
         //if fail, abort
         rpush feed.stalled:[feed] [id]
 
     retry: //retry a stalled job
         lrem feed.stalled:[feed] [id] 1
+        hdel feed.cancelled:[feed] [id]
         //if error, abort
         lpush feed.ids:[feed] [id]
