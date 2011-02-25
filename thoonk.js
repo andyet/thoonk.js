@@ -7,6 +7,7 @@ function Thoonk() {
     this.lredis = redis.createClient();
     this.lredis.subscribe("newfeed", "delfeed", "conffeed");
     this.mredis = redis.createClient();
+    this.bredis = redis.createClient();
 
     this.callbacks = {};
 
@@ -130,6 +131,7 @@ Thoonk.prototype.job = function(name, config) {
 Thoonk.prototype.quit = function() {
     this.mredis.quit();
     this.lredis.quit();
+    this.bredis.quit();
 }
 
 function Feed(thoonk, name, config) {
@@ -137,6 +139,7 @@ function Feed(thoonk, name, config) {
     this.thoonk = thoonk;
     this.mredis = this.thoonk.mredis; //I'm lazy
     this.lredis = this.thoonk.lredis;
+    this.bredis = this.thoonk.bredis;
     this.name = name;
     this.thoonk.once("ready:" + name, this.ready.bind(this));
     this.thoonk.exists(name,
@@ -250,7 +253,7 @@ function queue_publish(item) {
 function queue_get(timeout, callback, timeout_callback) {
     var callback = callback;
     if(!timeout) { var timeout = 0 };
-    this.mredis.brpop("feed.ids:" + this.name, timeout, function(err, result) {
+    this.bredis.brpop("feed.ids:" + this.name, timeout, function(err, result) {
         if(!err) {
             var id = result[1];
             this.mredis.hget("feed.items:" + this.name, id, function(err, result) {
@@ -289,7 +292,7 @@ Job.prototype = Object.create(Queue.prototype, {
 
 function job_get(timeout, callback, timeout_callback) {
     if(!timeout) { var timeout = 0; }
-    this.mredis.brpop("feed.ids:" + this.name, timeout, function(err, result) {
+    this.bredis.brpop("feed.ids:" + this.name, timeout, function(err, result) {
         if(!err) {
             var d = new Date()
             var id = result[1];
