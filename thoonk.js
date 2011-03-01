@@ -2,12 +2,14 @@ uuid = require("node-uuid");
 redis = require("redis");
 EventEmitter = require("events").EventEmitter;
 
-function Thoonk() {
+function Thoonk(host, port) {
+    if(!host) { host = "127.0.0.1"; }
+    if(!port) { port = 6379; }
     EventEmitter.call(this);
-    this.lredis = redis.createClient();
+    this.lredis = redis.createClient(host, port);
     this.lredis.subscribe("newfeed", "delfeed", "conffeed");
-    this.mredis = redis.createClient();
-    this.bredis = redis.createClient();
+    this.mredis = redis.createClient(host, port);
+    this.bredis = redis.createClient(host, port);
 
     this.callbacks = {};
 

@@ -41,11 +41,29 @@ After you install, you should really run the test suite.
 
 ## Initializing ##
 
+    var thoonk_m = require("thoonk");
+    var thoonk = new thoonk_m.Thoonk(Host, Port); //host and port are optional
+
 ## Creating a Feed ##
+
+    thoonk.create(feed_name, {"type": "feed"});
+
+OR create an object referencing the feed, creating it if it doesn't exist, reconfiguring it if you specify a configuration.
+
+    var test_feed = thoonk.feed(FeedName);
+
+The same is true for Queues and Jobs
+    
+    var test_queue = thoonk.queue(QueueName);
+    var test_job = thoonk.job(JobName);
 
 ## Configuring a Feed ##
 
+    thoonk.set_config(feed_name, json_config);
+
 ### Supported Configuration Options ###
+
+* type: feed/queue/job
 
 ## Using a Feed ##
 
@@ -78,5 +96,7 @@ After you install, you should really run the test suite.
 ### Retrying a Stalled Job ###
 
 ### Retracting a Job ###
+
+# The Future of Thoonk #
 
 # Writing Your Own Implementation or Peer #
