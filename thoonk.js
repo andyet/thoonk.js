@@ -11,8 +11,6 @@ function Thoonk(host, port) {
     this.mredis = redis.createClient(host, port);
     this.bredis = redis.createClient(host, port);
 
-    this.callbacks = {};
-
     this.instance = uuid();
 
     //map message events to this.handle_message using event_handler to apply instance scope
@@ -64,10 +62,11 @@ Thoonk.prototype.handle_message  = function(channel, msg) {
         //chans[1] is the feed name
         var chans = channel.split(":");
 
-        //if we have a registered callback for this feed, call it
-        if(this.callbacks.hasOwnProperty(chans[1])) {
-            this.callbacks[chans[1]](args[0], args[1]); 
-        }
+        //publish: id, payload
+        this.emit('publish', args[0], args[1]);
+    } else if (channel.substring(0, 13) == 'feed.retract:') {
+        //retract: id
+        this.emit('retract', args[0]);
     }
 }
 
@@ -143,6 +142,7 @@ function Feed(thoonk, name, config) {
     this.lredis = this.thoonk.lredis;
     this.bredis = this.thoonk.bredis;
     this.name = name;
+    this.subscribed = false;
     this.thoonk.once("ready:" + name, this.ready.bind(this));
     this.thoonk.exists(name,
         //exists
@@ -216,9 +216,14 @@ function feed_get_item(id, callback) {
     return this.mredis.hget("feed.items:" + this.name, id, callback);
 }
 
-function feed_subscribe(callback) {
-    this.lredis.subscribe("feed.publish:" + this.name);
-    this.thoonk.callbacks[this.name] = callback;
+function feed_subscribe(publish_callback, retract_callback) {
+    if(!this.subscribed) {
+        this.lredis.subscribe("feed.publish:" + this.name);
+        this.lredis.subscribe("feed.retract:" + this.name);
+        this.subscribed = true;
+    }
+    this.on('publish', publish_callback);
+    this.on('retract', retract_callback);
 }
 
 //extend Feed with EventEmitter
