@@ -6,10 +6,10 @@ function Thoonk(host, port) {
     if(!host) { host = "127.0.0.1"; }
     if(!port) { port = 6379; }
     EventEmitter.call(this);
-    this.lredis = redis.createClient(host, port);
+    this.lredis = redis.createClient(port, host);
     this.lredis.subscribe("newfeed", "delfeed", "conffeed");
-    this.mredis = redis.createClient(host, port);
-    this.bredis = redis.createClient(host, port);
+    this.mredis = redis.createClient(port, host);
+    this.bredis = redis.createClient(port, host);
 
     this.instance = uuid();
 

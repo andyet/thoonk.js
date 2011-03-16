@@ -3,9 +3,14 @@ var thoonk = new thoonk_module.Thoonk();
 var happy = thoonk.feed("happy", {'type': 'feed'});
 happy.once("ready", function () {
     console.log(thoonk.feeds);
-    happy.subscribe(function(id, msg) {
-        console.log("happy -> [" + id + "]: " + msg);
-    });
+    happy.subscribe(
+        function(id, msg) {
+            console.log("happy -> [" + id + "]: " + msg);
+        },
+        function(id) {
+            //retract callback required
+        }
+    );
     console.log("starting...");
     happy.publish("neehaw", "1");
     happy.publish("neehaw2", "1");
