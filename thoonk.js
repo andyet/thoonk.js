@@ -136,7 +136,7 @@ Thoonk.prototype.update_config = function(feed, callback) {
  * @param doesnt_callback Callback if it doesn't exist
  */
 Thoonk.prototype.exists = function(feed, exists_callback, doesnt_callback) {
-    if(this.feeds.hasOwnProperty(feed)) { return true; }
+    if(this.feeds.hasOwnProperty(feed)) exists_callback(true);
     this.mredis.sismember("feeds", feed, function(error, reply) {
         if(reply) {
             if(!this.feeds.hasOwnProperty(feed)) { this.update_config(feed); } 
@@ -199,14 +199,14 @@ function Feed(thoonk, name, config) {
         //exists
         function(reply) {
             if(!config) { 
-                this.update_config(this.name, this.ready.bind(this));
+                thoonk.update_config(this.name, this.ready.bind(this));
             } else {
-                this.thoonk.set_config(this.name, config);
+                thoonk.set_config(this.name, config);
             }
         }.bind(this),
         //doesn't
         function(reply) {
-            this.thoonk.create(name, config);
+            thoonk.create(name, config);
         }.bind(this)
     );
 }
