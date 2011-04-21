@@ -74,7 +74,7 @@ Thoonk.prototype.handle_message = function(channel, msg) {
         this.emit('publish', args[0], args[1]);
     } else if (channel.substring(0, 13) == 'feed.retract:') {
         //retract: id
-        this.emit('retract', args[0]);
+        this.emit('retract', msg);
     }
 };
 
@@ -95,6 +95,7 @@ Thoonk.prototype.create = function(name, config) {
         } else {
             this.emit("ready:" + name);
         }
+        this.mredis.publish("newfeed", name + "\x00" + this.instance);
     }.bind(this));
 };
 
@@ -215,24 +216,57 @@ function feed_ready() {
     this.emit("ready");
 }
 
-function feed_publish(item, id) {
-    var m = this.mredis.multi();
+function feed_publish(item, id, callback) {
+    var max_length = this.thoonk.feeds[this.name]['max_length'];
+    console.log('max', max_length);
+    console.log('feed.ids:' + this.name, max_length, -1);
+
+    this.mredis.multi()
+        .lrange('feed.ids:' + this.name, max_length, -1)
+        .ltrim('feed.ids:' + this.name, 0, max_length - 1)
+        .exec(function (err, reply) {
+            console.log(reply);
+            var multi = this.mredis.multi();
+            for(var i=0; i < reply[0].length; i++) {
+                multi.hdel('feed.items:' + this.name, reply[0][i]);
+            }
+            multi.exec();
+        }.bind(this));
+
     if(id == null) {
+        console.log("id not specified");
         id = uuid();
         //if we're generating a new id
-        this.mredis.hset("feed.items:" + this.name, id, item)
-        this.mredis.lpush("feed.ids:" + this.name, id, function(err,reply) { this.published(item, id); }.bind(this))
+        this.mredis.multi()
+            .hset("feed.items:" + this.name, id, item)
+            .lpush("feed.ids:" + this.name, id) 
+            .exec(function(err,reply) {
+                this.published(item, id);
+                //this.cull_maxitems(reply[1]);
+            }.bind(this));
     } else {
-        this.mredis.send_command("hexists", ["feed.items:" + this.name, id], function(err,reply) {
+        console.log("id specified", id);
+        this.mredis.hexists("feed.items:" + this.name, id, function(err,reply) {
             if(!reply) {
+                console.log(err, reply, id, "id doesn't already exist");
                 //if the id doesn't already exist
-                this.mredis.hset("feed.items:" + this.name, id, item)
-                this.mredis.lpush("feed.ids:" + this.name, id, function(err,reply) { this.published(item, id); }.bind(this))
+                this.mredis.multi()
+                    .hset("feed.items:" + this.name, id, item)
+                    .lpush("feed.ids:" + this.name, id)
+                    .exec(function(err,ireply) {
+                        this.published(item, id);
+                        //this.cull_maxitems(ireply[1]);
+                    }.bind(this)); 
+            } else {
+                //if we're updating an existing id
+                console.log("id already exists");
+                this.mredis.hset("feed.items:" + this.name, id, item, function(err,reply) {
+                    this.published(item, id);
+                }.bind(this))
             }
         }.bind(this));
     }
-    //if we're updating an existing id
-    this.mredis.hset("feed.items:" + this.name, id, item, function(err,reply) { this.published(item, id); }.bind(this))
+    
 }
 
 function feed_published(item, id) {
@@ -241,20 +275,20 @@ function feed_published(item, id) {
 
 function feed_retract(id) {
     this.mredis.multi()
-        .lrem("feed.ids:" + this.name, id, 1)
+        .lrem("feed.ids:" + this.name, 1, id)
         .hdel("feed.items:" + this.name, id)
         .exec(function(err, replies) {
             var error = false;
             replies.forEach(function(reply, idx) {
                 if(!reply) {
                     error = true;
-                    console.log("Could not delete " + id + "from " + this.name);
+                    //console.log("Could not delete " + id + " from " + this.name);
                 }
-            });
+            }.bind(this));
             if(!error) {
-                this.mredis.publish("feed.retract:" + this.name, id, id);
+                this.mredis.publish("feed.retract:" + this.name, id);
             }
-        });
+        }.bind(this));
 }
 
 function feed_get_ids(callback) {
@@ -291,6 +325,7 @@ Feed.prototype.get_ids = feed_get_ids;
 Feed.prototype.get_item = feed_get_item;
 Feed.prototype.subscribe = feed_subscribe;
 Feed.prototype.ready = feed_ready;
+Feed.prototype.cull_maxitems = feed_cull_maxitems;
 
 function Queue(thoonk, name, config) {
     Feed.call(this, thoonk, name, config);
