@@ -106,6 +106,9 @@ Thoonk.prototype.create = function(name, config) {
  * @param config The configuration settings
  */
 Thoonk.prototype.set_config = function(feed, config, _newfeed) {
+    if(!config.hasOwnProperty('type')) {
+        config['type'] = 'feed';
+    }
     this.mredis.set("feed.config:" + feed, JSON.stringify(config));
     this.feeds[feed] = config;
     this.emit("ready:" + feed);
@@ -187,12 +190,16 @@ Thoonk.prototype.quit = function() {
     this.bredis.quit();
 };
 
-function Feed(thoonk, name, config) {
+//Feed object
+function Feed(thoonk, name, config, type) {
     EventEmitter.call(this);
     this.thoonk = thoonk;
-    this.mredis = this.thoonk.mredis; //I'm lazy
+
+    //local references
+    this.mredis = this.thoonk.mredis;
     this.lredis = this.thoonk.lredis;
     this.bredis = this.thoonk.bredis;
+
     this.name = name;
     this.subscribed = false;
     this.thoonk.once("ready:" + name, this.ready.bind(this));
@@ -202,7 +209,9 @@ function Feed(thoonk, name, config) {
             if(!config) { 
                 thoonk.update_config(this.name, this.ready.bind(this));
             } else {
-                thoonk.set_config(this.name, config);
+                if(!type) { type = 'feed' }
+                if(!config.hasOwnProperty('type')) { config.type = type; }
+                this.thoonk.set_config(this.name, config);
             }
         }.bind(this),
         //doesn't
@@ -328,7 +337,7 @@ Feed.prototype.ready = feed_ready;
 Feed.prototype.cull_maxitems = feed_cull_maxitems;
 
 function Queue(thoonk, name, config) {
-    Feed.call(this, thoonk, name, config);
+    Feed.call(this, thoonk, name, config, 'queue');
 }
 
 function queue_publish(item) {
@@ -369,7 +378,7 @@ Queue.prototype.put = queue_publish;
 Queue.prototype.get = queue_get;
 
 function Job(thoonk, name, config) {
-    Queue.call(this, thoonk, name, config);
+    Feed.call(this, thoonk, name, config, 'job');
 }
 
 Job.super_ = Queue;
