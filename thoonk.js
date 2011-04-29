@@ -84,6 +84,9 @@ Thoonk.prototype.create = function(name, config) {
 
 //update the config
 Thoonk.prototype.set_config = function(feed, config, _newfeed) {
+    if(!config.hasOwnProperty('type')) {
+        config['type'] = 'feed';
+    }
     this.mredis.set("feed.config:" + feed, JSON.stringify(config));
     this.feeds[feed] = config;
     this.emit("ready:" + feed);
@@ -92,6 +95,7 @@ Thoonk.prototype.set_config = function(feed, config, _newfeed) {
     }
 }
 
+//(re)load the config from redis
 Thoonk.prototype.update_config = function(feed, callback) {
     this.mredis.get("feed.config:" + feed, function(err, reply) {
         this.feeds[feed] = JSON.parse(reply);
@@ -101,6 +105,7 @@ Thoonk.prototype.update_config = function(feed, callback) {
     }.bind(this));
 }
 
+//does the feed exist
 Thoonk.prototype.exists = function(feed, exists_callback, doesnt_callback) {
     if(this.feeds.hasOwnProperty(feed)) { return true; }
     var obj = this;
@@ -114,33 +119,41 @@ Thoonk.prototype.exists = function(feed, exists_callback, doesnt_callback) {
     }.bind(this));
 }
 
+//generator for the Feed class
 Thoonk.prototype.feed = function(name, config) {
     var feed = new Feed(this, name, config);
     return feed;
 }
 
+//generator for the Queue class
 Thoonk.prototype.queue = function(name, config) {
     var queue = new Queue(this, name, config);
     return queue;
 }
 
+//generator for the Job class
 Thoonk.prototype.job = function(name, config) {
     var job = new Job(this, name, config);
     return job;
 }
 
+//cleanly disconnect from all redis connections
 Thoonk.prototype.quit = function() {
     this.mredis.quit();
     this.lredis.quit();
     this.bredis.quit();
 }
 
-function Feed(thoonk, name, config) {
+//Feed object
+function Feed(thoonk, name, config, type) {
     EventEmitter.call(this);
     this.thoonk = thoonk;
-    this.mredis = this.thoonk.mredis; //I'm lazy
+
+    //local references
+    this.mredis = this.thoonk.mredis;
     this.lredis = this.thoonk.lredis;
     this.bredis = this.thoonk.bredis;
+
     this.name = name;
     this.subscribed = false;
     this.thoonk.once("ready:" + name, this.ready.bind(this));
@@ -150,6 +163,8 @@ function Feed(thoonk, name, config) {
             if(!config) { 
                 this.update_config(this.name, this.ready.bind(this));
             } else {
+                if(!type) { type = 'feed' }
+                if(!config.hasOwnProperty('type')) { config.type = type; }
                 this.thoonk.set_config(this.name, config);
             }
         }.bind(this),
@@ -244,7 +259,7 @@ Feed.prototype.subscribe = feed_subscribe;
 Feed.prototype.ready = feed_ready;
 
 function Queue(thoonk, name, config) {
-    Feed.call(this, thoonk, name, config);
+    Feed.call(this, thoonk, name, config, 'queue');
 }
 
 function queue_publish(item) {
@@ -286,7 +301,7 @@ Queue.prototype.put = queue_publish;
 Queue.prototype.get = queue_get;
 
 function Job(thoonk, name, config) {
-    Queue.call(this, thoonk, name, config);
+    Feed.call(this, thoonk, name, config, 'job');
 }
 
 Job.super_ = Queue;
