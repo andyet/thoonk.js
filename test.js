@@ -1,6 +1,6 @@
 var thoonk_module = require("./thoonk");
 var thoonk = new thoonk_module.Thoonk();
-var happy = thoonk.feed("happy", {'type': 'feed'});
+var happy = thoonk.feed("happy", {'type': 'feed', 'max_length': 3});
 happy.once("ready", function () {
     console.log(thoonk.feeds);
     happy.subscribe(
@@ -13,10 +13,10 @@ happy.once("ready", function () {
     );
     console.log("starting...");
     happy.publish("neehaw", "1");
-    happy.publish("neehaw2", "1");
-    happy.publish("neehaw3", "1");
-    happy.publish("neehaw4", "1");
-    happy.publish("neehaw5", "1");
+    happy.publish("neehaw2", "2");
+    happy.publish("neehaw3", "3");
+    happy.publish("neehaw4", "4");
+    happy.publish("neehaw5", "5");
     happy.get_item("1", function(err, reply) {
         console.log(reply);
     });

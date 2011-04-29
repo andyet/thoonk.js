@@ -1,7 +1,14 @@
-uuid = require("node-uuid");
-redis = require("redis");
-EventEmitter = require("events").EventEmitter;
+var uuid = require("node-uuid"),
+	redis = require("redis"),
+	EventEmitter = require("events").EventEmitter;
 
+/**
+ * Thoonk is a persistent (and fast!) system for push feeds, queues, and jobs which leverages Redis. Thoonk.js is the
+ * node.js implementation of Thoonk, and is interoperable with other versions of Thoonk (currently Thoonk.py).
+ * 
+ * @param host
+ * @param port
+ */
 function Thoonk(host, port) {
     if(!host) { host = "127.0.0.1"; }
     if(!port) { port = 6379; }
@@ -29,35 +36,36 @@ Thoonk.super_ = EventEmitter;
 Thoonk.prototype = Object.create(EventEmitter.prototype, {
     constructor: {
         value: Thoonk,
-        enumerable: false,
+        enumerable: false
     }
 });
 
 //map the event to the subscription callback
-Thoonk.prototype.handle_message  = function(channel, msg) {
+Thoonk.prototype.handle_message = function(channel, msg) {
+	var args;
     if(channel == "newfeed") {
         //feed, instance
-        var args = msg.split('\x00');
+        args = msg.split('\x00');
         if(args[1] != this.instance) {
             //this.feeds[args[0]] = null;
             this.update_config(args[0]);
         }
     } else if (channel == "delfeed") {
         //feed instance
-        var args = msg.split('\x00');
+        args = msg.split('\x00');
         if(args[1] != this.instance) {
             delete this.feeds[args[0]];
         }
     } else if (channel == "conffeed") {
         //feed instance
-        var args = msg.split('\x00');
+        args = msg.split('\x00');
         if(args[1] != this.instance) {
             //this.feeds[args[0]] = null;
             this.update_config(args[0]);
         }
     } else if (channel.substring(0, 13) == 'feed.publish:') {
         //id, event
-        var args = msg.split('\x00');
+        args = msg.split('\x00');
 
         //chans[1] is the feed name
         var chans = channel.split(":");
@@ -66,23 +74,37 @@ Thoonk.prototype.handle_message  = function(channel, msg) {
         this.emit('publish', args[0], args[1]);
     } else if (channel.substring(0, 13) == 'feed.retract:') {
         //retract: id
-        this.emit('retract', args[0]);
+        this.emit('retract', msg);
     }
-}
+};
 
-//create a feed
+/**
+ * Create a new feed. A feed is a subject that you can publish items to (string, binary, json, xml, whatever), each with
+ * a unique id (assigned or generated). Other apps and services may subscribe to your feeds and recieve
+ * new/update/retract notices on your feeds. Each feed persists published items that can later be queried. Feeds may
+ * also be configured for various behaviors, such as max number of items, default serializer, friendly title, etc.
+ * 
+ * @param name The name of the feed to be created. If the feed has already been created it will not be recreated.
+ * @param config Configuration settings for the feed such as max items, default serializer, etc. 
+ */
 Thoonk.prototype.create = function(name, config) {
     this.mredis.sadd("feeds", name, function(err, result) {
-        //if we added it, configure it
+        // if we added it, configure it
         if(result != 0) { 
             this.set_config(name, config, true);
-         } else {
+        } else {
             this.emit("ready:" + name);
-         }
+        }
+        this.mredis.publish("newfeed", name + "\x00" + this.instance);
     }.bind(this));
-}
+};
 
-//update the config
+/**
+ * Update the configuration of the feed. This will overwrite any previous settings that may have been set.
+ * 
+ * @param feed The feed name
+ * @param config The configuration settings
+ */
 Thoonk.prototype.set_config = function(feed, config, _newfeed) {
     if(!config.hasOwnProperty('type')) {
         config['type'] = 'feed';
@@ -93,9 +115,14 @@ Thoonk.prototype.set_config = function(feed, config, _newfeed) {
     if(!_newfeed) {
         this.mredis.publish("conffeed", feed + "\x00" + this.instance);
     }
-}
+};
 
-//(re)load the config from redis
+/**
+ * Retrieve the configuration of the feed from storage and update in memory. 
+ * 
+ * @param feed The feed name
+ * @param callback
+ */
 Thoonk.prototype.update_config = function(feed, callback) {
     this.mredis.get("feed.config:" + feed, function(err, reply) {
         this.feeds[feed] = JSON.parse(reply);
@@ -103,12 +130,17 @@ Thoonk.prototype.update_config = function(feed, callback) {
            callback(this.feeds[feed]);
         }
     }.bind(this));
-}
+};
 
-//does the feed exist
+/**
+ * Whether a feed exists or not.
+ * 
+ * @param feed The name of the feed
+ * @param exists_callback Callback if it exists
+ * @param doesnt_callback Callback if it doesn't exist
+ */
 Thoonk.prototype.exists = function(feed, exists_callback, doesnt_callback) {
-    if(this.feeds.hasOwnProperty(feed)) { return true; }
-    var obj = this;
+    if(this.feeds.hasOwnProperty(feed)) exists_callback(true);
     this.mredis.sismember("feeds", feed, function(error, reply) {
         if(reply) {
             if(!this.feeds.hasOwnProperty(feed)) { this.update_config(feed); } 
@@ -117,32 +149,46 @@ Thoonk.prototype.exists = function(feed, exists_callback, doesnt_callback) {
             doesnt_callback(reply);
         }
     }.bind(this));
-}
+};
 
-//generator for the Feed class
+/**
+ * Create and return a new feed.
+ * 
+ * @param name The feed name
+ * @param config The feed configuration settings
+ */
 Thoonk.prototype.feed = function(name, config) {
-    var feed = new Feed(this, name, config);
-    return feed;
-}
+    return new Feed(this, name, config);
+};
 
-//generator for the Queue class
+/**
+ * Create and return a new queue.
+ * 
+ * @param name The queue name
+ * @param config The queue configuration settings
+ */
 Thoonk.prototype.queue = function(name, config) {
-    var queue = new Queue(this, name, config);
-    return queue;
-}
+    return new Queue(this, name, config);
+};
 
-//generator for the Job class
+/**
+ * Create and return a new job queue.
+ * 
+ * @param name The job queue name
+ * @param config The job queue configuration settings
+ */
 Thoonk.prototype.job = function(name, config) {
-    var job = new Job(this, name, config);
-    return job;
-}
+    return new Job(this, name, config);
+};
 
-//cleanly disconnect from all redis connections
+/**
+ * Disconnect from the server.
+ */
 Thoonk.prototype.quit = function() {
     this.mredis.quit();
     this.lredis.quit();
     this.bredis.quit();
-}
+};
 
 //Feed object
 function Feed(thoonk, name, config, type) {
@@ -161,7 +207,7 @@ function Feed(thoonk, name, config, type) {
         //exists
         function(reply) {
             if(!config) { 
-                this.update_config(this.name, this.ready.bind(this));
+                thoonk.update_config(this.name, this.ready.bind(this));
             } else {
                 if(!type) { type = 'feed' }
                 if(!config.hasOwnProperty('type')) { config.type = type; }
@@ -170,7 +216,7 @@ function Feed(thoonk, name, config, type) {
         }.bind(this),
         //doesn't
         function(reply) {
-            this.thoonk.create(name, config);
+            thoonk.create(name, config);
         }.bind(this)
     );
 }
@@ -179,26 +225,57 @@ function feed_ready() {
     this.emit("ready");
 }
 
-function feed_publish(item, id) {
-    var m = this.mredis.multi();
-    var id = id;
-    var item = item;
+function feed_publish(item, id, callback) {
+    var max_length = this.thoonk.feeds[this.name]['max_length'];
+    console.log('max', max_length);
+    console.log('feed.ids:' + this.name, max_length, -1);
+
+    this.mredis.multi()
+        .lrange('feed.ids:' + this.name, max_length, -1)
+        .ltrim('feed.ids:' + this.name, 0, max_length - 1)
+        .exec(function (err, reply) {
+            console.log(reply);
+            var multi = this.mredis.multi();
+            for(var i=0; i < reply[0].length; i++) {
+                multi.hdel('feed.items:' + this.name, reply[0][i]);
+            }
+            multi.exec();
+        }.bind(this));
+
     if(id == null) {
-        id = uuid()
+        console.log("id not specified");
+        id = uuid();
         //if we're generating a new id
-        this.mredis.hset("feed.items:" + this.name, id, item)
-        this.mredis.lpush("feed.ids:" + this.name, id, function(err,reply) { this.published(item, id); }.bind(this))
+        this.mredis.multi()
+            .hset("feed.items:" + this.name, id, item)
+            .lpush("feed.ids:" + this.name, id) 
+            .exec(function(err,reply) {
+                this.published(item, id);
+                //this.cull_maxitems(reply[1]);
+            }.bind(this));
     } else {
-        this.mredis.send_command("hexists", ["feed.items:" + this.name, id], function(err,reply) {
+        console.log("id specified", id);
+        this.mredis.hexists("feed.items:" + this.name, id, function(err,reply) {
             if(!reply) {
+                console.log(err, reply, id, "id doesn't already exist");
                 //if the id doesn't already exist
-                this.mredis.hset("feed.items:" + this.name, id, item)
-                this.mredis.lpush("feed.ids:" + this.name, id, function(err,reply) { this.published(item, id); }.bind(this))
+                this.mredis.multi()
+                    .hset("feed.items:" + this.name, id, item)
+                    .lpush("feed.ids:" + this.name, id)
+                    .exec(function(err,ireply) {
+                        this.published(item, id);
+                        //this.cull_maxitems(ireply[1]);
+                    }.bind(this)); 
+            } else {
+                //if we're updating an existing id
+                console.log("id already exists");
+                this.mredis.hset("feed.items:" + this.name, id, item, function(err,reply) {
+                    this.published(item, id);
+                }.bind(this))
             }
         }.bind(this));
     }
-    //if we're updating an existing id
-    this.mredis.hset("feed.items:" + this.name, id, item, function(err,reply) { this.published(item, id); }.bind(this))
+    
 }
 
 function feed_published(item, id) {
@@ -207,20 +284,20 @@ function feed_published(item, id) {
 
 function feed_retract(id) {
     this.mredis.multi()
-        .lrem("feed.ids:" + this.name, id, 1)
+        .lrem("feed.ids:" + this.name, 1, id)
         .hdel("feed.items:" + this.name, id)
         .exec(function(err, replies) {
             var error = false;
             replies.forEach(function(reply, idx) {
                 if(!reply) {
                     error = true;
-                    console.log("Could not delete " + id + "from " + this.name);
+                    //console.log("Could not delete " + id + " from " + this.name);
                 }
-            });
+            }.bind(this));
             if(!error) {
-                this.mredis.publish("feed.retract:" + this.name, id, id);
+                this.mredis.publish("feed.retract:" + this.name, id);
             }
-        });
+        }.bind(this));
 }
 
 function feed_get_ids(callback) {
@@ -246,7 +323,7 @@ Feed.super_ = EventEmitter;
 Feed.prototype = Object.create(EventEmitter.prototype, {
     constructor: {
         value: Feed,
-        enumerable: false,
+        enumerable: false
     }
 });
 
@@ -257,13 +334,14 @@ Feed.prototype.get_ids = feed_get_ids;
 Feed.prototype.get_item = feed_get_item;
 Feed.prototype.subscribe = feed_subscribe;
 Feed.prototype.ready = feed_ready;
+Feed.prototype.cull_maxitems = feed_cull_maxitems;
 
 function Queue(thoonk, name, config) {
     Feed.call(this, thoonk, name, config, 'queue');
 }
 
 function queue_publish(item) {
-    id = uuid()
+    id = uuid();
     this.mredis.multi()
     .hset("feed.items:" + this.name, id, item)
     .lpush("feed.ids:" + this.name, id)
@@ -273,8 +351,7 @@ function queue_publish(item) {
 }
 
 function queue_get(timeout, callback, timeout_callback) {
-    var callback = callback;
-    if(!timeout) { var timeout = 0 };
+    if(!timeout) timeout = 0;
     this.bredis.brpop("feed.ids:" + this.name, timeout, function(err, result) {
         if(!err) {
             var id = result[1];
@@ -292,7 +369,7 @@ Queue.super_ = Feed;
 Queue.prototype = Object.create(Feed.prototype, {
     constructor: {
         value: Queue,
-        enumerable: false,
+        enumerable: false
     }
 });
 
@@ -308,15 +385,15 @@ Job.super_ = Queue;
 Job.prototype = Object.create(Queue.prototype, {
     constructor: {
         value: Job,
-        enumerable: false,
+        enumerable: false
     }
 });
 
 function job_get(timeout, callback, timeout_callback) {
-    if(!timeout) { var timeout = 0; }
+    if(!timeout) timeout = 0;
     this.bredis.brpop("feed.ids:" + this.name, timeout, function(err, result) {
         if(!err) {
-            var d = new Date()
+            var d = new Date();
             var id = result[1];
             this.mredis.hset("feed.running:" + this.name, id, d.getTime());
             this.mredis.hget("feed.items:" + this.name, id, function(err, result) {
@@ -329,7 +406,6 @@ function job_get(timeout, callback, timeout_callback) {
 }
 
 function job_finish(id, setresult, callback, error_callback) {
-    var id = id;
     this.mredis.hdel("feed.running:" + this.name, id, function(err, result) {
         if(!err) {
             if(setresult !== null && setresult !== undefined) {
