@@ -29,7 +29,7 @@ Feed:
                     ZREM feed.ids:[feed] [id]
                     HDEL feed.items:[feed] [id]
                     PUBLISH feed.retract:[feed] [id]
-            ZADD feed.ids:[feed] [utc RFC 3339 time] [id]
+            ZADD feed.ids:[feed] [utc epoch milliseconds] [id]
             INCR feed.publishes:[feed]
             HSET feed.items:[feed] [id] [item]
             PUBLISH feed.publish:[feed] [id]\x00[item]
@@ -44,7 +44,6 @@ Feed:
                 HDEL feed.items:[feed] [id]
                 PUBLISH feed.retract:[feed] [id]
             EXEC // if nil, go back to WATCH
-        else UNWATCH feed.ids:[feed]
 
     Get IDs:
         ZRANGE feed.ids:[feed] 0 -1
@@ -152,7 +151,7 @@ Job:
             LPUSH feed.ids:[feed] [id]
             INCR feed.publishes:[feed]
             HSET feed.items:[feed] [id] [item]
-            ZADD feed.published:[feed] [utc RFC 3339 time] [id]
+            ZADD feed.published:[feed] [utc epoch] [id]
         EXEC
 
     High Priority Put:
@@ -160,14 +159,14 @@ Job:
         MULTI
             RPUSH feed.ids:[feed] [id]
             HSET feed.items:[feed] [id] [item]
-            ZADD feed.published:[feed] [utc RFC 3339 time] [id]
+            ZADD feed.published:[feed] [utc epoch] [id]
         EXEC
 
     Get:
         id = BRPOPLPUSH feed.ids:[feed] [timeout]
         //if error/timeout, abort
         MULTI
-            ZADD feed.claimed:[feed] [id] [utc RFC 3339 time]
+            ZADD feed.claimed:[feed] [id] [utc epoch]
             item = HGET feed:items[feed] [id]
         EXEC
         //if the id fails to get from feed.ids to feed.claimed, the maintenance will notice eventually
@@ -213,7 +212,7 @@ Job:
             SREM feed.stalled:[feed] [id]
             //if error, abort
             LPUSH feed.ids:[feed] [id]
-            ZADD feed.published:[feed] [utc RFC 3339 time] [id]
+            ZADD feed.published:[feed] [utc epoch] [id]
         EXEC
 
     Maintenance: //maintain job queue -- only ran by one process per jobqueue on occasion
