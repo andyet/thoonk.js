@@ -32,8 +32,11 @@ Feed:
             ZADD feed.ids:[feed] [utc epoch milliseconds] [id]
             INCR feed.publishes:[feed]
             HSET feed.items:[feed] [id] [item]
-            PUBLISH feed.publish:[feed] [id]\x00[item]
         EXEC // if nil, go back to WATCH
+        //if zadd returned 1
+            PUBLISH feed.publish:[feed] [id]\x00[item]
+        //else
+            PUBLISH feed.edit:[feed] [id]\x00[item]
 
 
     Retract:
