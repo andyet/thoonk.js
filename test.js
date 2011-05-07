@@ -8,6 +8,9 @@ happy.once("ready", function () {
         function(id, msg) {
             console.log("published -> happy[" + id + "]: " + msg);
         },
+        function(id, msg) {
+            console.log("updated -> happy[" + id + "]: " + msg);
+        },
         function(id) {
             console.log("retracted -> happy[" + id + "]");
         },

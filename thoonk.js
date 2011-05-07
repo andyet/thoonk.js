@@ -1,6 +1,6 @@
 var uuid = require("node-uuid"),
 	redis = require("redis"),
-    padlock = require("./padlock"),
+    padlock = require("padlock"),
 	EventEmitter = require("events").EventEmitter;
 
 /**
@@ -74,6 +74,15 @@ Thoonk.prototype.handle_message = function(channel, msg) {
 
         //publish: id, payload
         this.emit('publish:' + chans[1], args[0], args[1]);
+    } else if (channel.substring(0, 10) == 'feed.edit:') {
+        //id, event
+        args = msg.split('\x00');
+
+        //chans[1] is the feed name
+        var chans = channel.split(":");
+
+        //publish: id, payload
+        this.emit('edit:' + chans[1], args[0], args[1]);
     } else if (channel.substring(0, 13) == 'feed.retract:') {
         //retract: id
         var chans = channel.split(":");
@@ -227,16 +236,14 @@ function Feed(thoonk, name, config, type) {
 }
 
 function feed_ready() {
-    console.log("got ready");
     this.lredis.once('idle', function() { 
-        console.log("idle");
         this.emit('ready');
     }.bind(this));
     setTimeout(function() {
-        console.log("idle timeout");
         this.emit('ready');
     }.bind(this), 100);
     this.lredis.subscribe("feed.publish:" + this.name);
+    this.lredis.subscribe("feed.edit:" + this.name);
     this.lredis.subscribe("feed.retract:" + this.name);
     this.subscribed = true;
 }
@@ -263,11 +270,15 @@ function feed_publish(item, id, callback) {
                 pmulti.zadd('feed.ids:' + this.name, Date.now(), id);
                 pmulti.incr('feed.publishes:' + this.name);
                 pmulti.hset('feed.items:' + this.name, id, item);
-                pmulti.publish('feed.publish:' + this.name, id + "\x00" + item);
                 pmulti.exec(function(err, reply) {
                     if(!reply) { 
                         publish_attempt();
                     } else {
+                        if(reply.slice(-3,-2)[0]) {
+                            this.mredis.publish('feed.publish:' + this.name, id + "\x00" + item);
+                        } else {
+                            this.mredis.publish('feed.edit:' + this.name, id + "\x00" + item);
+                        }
                         this.thoonk.lock.unlock();
                         if(callback !== undefined) { callback(true); }
                     }
@@ -279,8 +290,12 @@ function feed_publish(item, id, callback) {
         pmulti.zadd('feed.ids:' + this.name, Date.now(), id);
         pmulti.incr('feed.publishes:' + this.name);
         pmulti.hset('feed.items:' + this.name, id, item);
-        pmulti.publish('feed.publish:' + this.name, id + "\x00" + item);
         pmulti.exec(function(err,reply) {
+            if(reply.slice(-3,-2)[0]) {
+                this.mredis.publish('feed.publish:' + this.name, id + "\x00" + item);
+            } else {
+                this.mredis.publish('feed.edit:' + this.name, id + "\x00" + item);
+            }
             this.thoonk.lock.unlock();
             if(callback !== undefined) { callback(true); }
         }.bind(this));
@@ -314,12 +329,14 @@ function feed_get_item(id, callback) {
     return this.mredis.hget("feed.items:" + this.name, id, callback);
 }
 
-function feed_subscribe(publish_callback, retract_callback, done_callback) {
+function feed_subscribe(publish_callback, edit_callback, retract_callback, done_callback) {
     this.thoonk.on('publish:' + this.name, publish_callback);
+    this.thoonk.on('edit:' + this.name, edit_callback);
     this.thoonk.on('retract:' + this.name, retract_callback);
     if(!this.subscribed) {
         this.lredis.once('idle', done_callback);
         this.lredis.subscribe("feed.publish:" + this.name);
+        this.lredis.subscribe("feed.edit:" + this.name);
         this.lredis.subscribe("feed.retract:" + this.name);
         this.subscribed = true;
     } else {
