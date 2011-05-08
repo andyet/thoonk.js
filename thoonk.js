@@ -249,8 +249,6 @@ function feed_ready() {
 }
 
 function feed_publish(item, id, callback) {
-    //if(!this.thoonk.lock.acquire(feed_publish, [item, id, callback], this)) { return; }
-
     if(id == null) {
         id = uuid();
     }
@@ -364,14 +362,23 @@ function Queue(thoonk, name, config) {
     Feed.call(this, thoonk, name, config, 'queue');
 }
 
-function queue_publish(item) {
+function queue_publish(item, callback, priority) {
     id = uuid();
-    this.mredis.multi()
-    .hset("feed.items:" + this.name, id, item)
-    .lpush("feed.ids:" + this.name, id)
-    .exec(function(err, replies) {
+    var multi = this.mredis.multi();
+    if(priority) {
+        multi.lpush("feed.ids:" + this.name, id);
+    } else {
+        multi.rpush("feed.ids:" + this.name, id);
+    }
+    multi.hset("feed.items:" + this.name, id, item);
+    multi.incr("feed.publishes:" + this.name);
+    multi.exec(function(err, replies) {
         //TODO error handler
     });
+}
+
+function queue_publishfront(item, callback) {
+    this.queue_publish(item, callback, true);
 }
 
 function queue_get(timeout, callback, timeout_callback) {
@@ -379,12 +386,14 @@ function queue_get(timeout, callback, timeout_callback) {
     this.bredis.brpop("feed.ids:" + this.name, timeout, function(err, result) {
         if(!err) {
             var id = result[1];
-            this.mredis.hget("feed.items:" + this.name, id, function(err, result) {
+            this.mredis.multi()
+            .hget("feed.items:" + this.name, id)
+            .hdel("feed.items:" + this.name, id)
+            .exec(function(err, result) {
                 callback(result, id);
-                this.mredis.hdel("feed.items:" + this.name, result);
-            }.bind(this));
+            });
         } else {
-            timeout_callback()
+            timeout_callback();
         }
     }.bind(this));
 }
@@ -400,6 +409,7 @@ Queue.prototype = Object.create(Feed.prototype, {
 Queue.prototype.publish = queue_publish;
 Queue.prototype.put = queue_publish;
 Queue.prototype.get = queue_get;
+Queue.prototype.high_put = queue_publishfront;
 
 function Job(thoonk, name, config) {
     Feed.call(this, thoonk, name, config, 'job');
