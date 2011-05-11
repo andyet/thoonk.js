@@ -169,7 +169,7 @@ Job:
         id = BRPOPLPUSH feed.ids:[feed] [timeout]
         //if error/timeout, abort
         MULTI
-            ZADD feed.claimed:[feed] [id] [utc epoch]
+            ZADD feed.claimed:[feed] [utc epoch] [id] 
             item = HGET feed:items[feed] [id]
         EXEC
         //if the id fails to get from feed.ids to feed.claimed, the maintenance will notice eventually
@@ -181,7 +181,7 @@ Job:
             ZREM feed.claimed:[feed] [id]
             HDEL feed.cancelled:[feed] [id] //just to make sure
             //optionally if publishing a result:
-                LPUSH feed.jobfinished:[feed]\x00[id] [item]\x00[result]
+                LPUSH feed.jobfinished:[feed]\x00[id] [result]
                 EXPIRE feed.jobfinished:[feed]\x00[id] [timeout]
             HDEL feed.items:[feed] [id]
         EXEC // if nil: go back to WATCH and try again
@@ -206,17 +206,17 @@ Job:
             HDEL feed.cancelled:[feed] [id]
             SADD feed.stalled:[feed] [id]
             ZREM feed.published:[feed] [id]
-        EXEC
+        EXEC // if nil, retry
 
     Retry: //retry a stalled job
         WATCH feed.stalled:[feed]
-        ZRANGE feed.stalled:[feed] [id] // if nil: fail
+        SISMEMBER feed.stalled:[feed] [id] // if nil: fail
         MULTI
             SREM feed.stalled:[feed] [id]
             //if error, abort
             LPUSH feed.ids:[feed] [id]
             ZADD feed.published:[feed] [utc epoch] [id]
-        EXEC
+        EXEC if nil retry
 
     Maintenance: //maintain job queue -- only ran by one process per jobqueue on occasion
         MULTI
