@@ -12,6 +12,7 @@ job.once("ready", function() {
         }
         idx++;
         job.get(0, function(item, id) {
+            console.log(item);
             job.finish(id);
             if(idx < 39999) {
                 getjob();

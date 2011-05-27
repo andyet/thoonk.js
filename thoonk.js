@@ -233,6 +233,7 @@ function Feed(thoonk, name, config, type) {
     );
 
     this.publish = this.thoonk.lock.require(feed_publish, this);
+    this.retract = this.thoonk.lock.require(feed_retract, this);
 }
 
 function feed_ready() {
@@ -258,7 +259,7 @@ function feed_publish(item, id, callback) {
         //attempt to publish, so long as feed.ids doesn't change
         var publish_attempt = function() {
             this.mredis.watch('feed.ids:' + this.name);
-            this.mredis.zrange('feed.ids:' + this.name, 0, (-max_length - 1), function (err, reply) {
+            this.mredis.zrange('feed.ids:' + this.name, 0, -max_length, function (err, reply) {
                 var delete_ids = reply;
                 delete_ids.forEach(function (delete_id, idx) {
                     pmulti.zrem('feed.ids:' + this.name, delete_id);
@@ -269,6 +270,7 @@ function feed_publish(item, id, callback) {
                 pmulti.incr('feed.publishes:' + this.name);
                 pmulti.hset('feed.items:' + this.name, id, item);
                 pmulti.exec(function(err, reply) {
+                    this.thoonk.lock.unlock();
                     if(!reply) { 
                         publish_attempt();
                     } else {
@@ -277,7 +279,6 @@ function feed_publish(item, id, callback) {
                         } else {
                             this.mredis.publish('feed.edit:' + this.name, id + "\x00" + item);
                         }
-                        this.thoonk.lock.unlock();
                         if(callback !== undefined) { callback(true); }
                     }
                 }.bind(this));
@@ -289,12 +290,12 @@ function feed_publish(item, id, callback) {
         pmulti.incr('feed.publishes:' + this.name);
         pmulti.hset('feed.items:' + this.name, id, item);
         pmulti.exec(function(err,reply) {
+            this.thoonk.lock.unlock();
             if(reply.slice(-3,-2)[0]) {
                 this.mredis.publish('feed.publish:' + this.name, id + "\x00" + item);
             } else {
                 this.mredis.publish('feed.edit:' + this.name, id + "\x00" + item);
             }
-            this.thoonk.lock.unlock();
             if(callback !== undefined) { callback(true); }
         }.bind(this));
     }
@@ -309,10 +310,13 @@ function feed_retract(id) {
                 rmulti.hdel('feed.items:' + this.name, id); 
                 rmulti.publish('feed.retract:' + this.name, id);
                 rmulti.exec(function(err, reply) {
+                    this.thoonk.lock.unlock();
                     if(!reply) {
                         this.mredis.unwatch('feed.ids:' + this.name);
                     }
                 }.bind(this));
+            } else {
+                this.thoonk.lock.unlock();
             }
         }.bind(this));
     }.bind(this));
@@ -360,6 +364,9 @@ Feed.prototype.ready = feed_ready;
 
 function Queue(thoonk, name, config) {
     Feed.call(this, thoonk, name, config, 'queue');
+    this.publish = this.thoonk.lock.require(queue_publish, this);
+    this.put = this.thoonk.lock.require(queue_publish, this);
+    this.get = this.thoonk.lock.require(queue_get, this);
 }
 
 function queue_publish(item, callback, priority) {
@@ -373,12 +380,13 @@ function queue_publish(item, callback, priority) {
     multi.hset("feed.items:" + this.name, id, item);
     multi.incr("feed.publishes:" + this.name);
     multi.exec(function(err, replies) {
+        this.thoonk.lock.unlock();
         //TODO error handler
-    });
+    }.bind(this));
 }
 
 function queue_publishfront(item, callback) {
-    this.queue_publish(item, callback, true);
+    this.publish(item, callback, true);
 }
 
 function queue_get(timeout, callback, timeout_callback) {
@@ -390,9 +398,11 @@ function queue_get(timeout, callback, timeout_callback) {
             .hget("feed.items:" + this.name, id)
             .hdel("feed.items:" + this.name, id)
             .exec(function(err, result) {
+                this.thoonk.lock.unlock();
                 callback(result[0], id);
-            });
+            }.bind(this));
         } else {
+            this.thoonk.lock.unlock();
             timeout_callback();
         }
     }.bind(this));
@@ -418,7 +428,12 @@ Queue.prototype.get_ids = queue_get_ids;
 
 function Job(thoonk, name, config) {
     Feed.call(this, thoonk, name, config, 'job');
-    this.publish = this.thoonk.lock.require(this.publish, this);
+    this.publish = this.thoonk.lock.require(job_publish, this);
+    this.get = this.thoonk.lock.require(job_get, this);
+    this.finish = this.thoonk.lock.require(job_finish, this);
+    this.cancel = this.thoonk.lock.require(job_cancel, this);
+    this.stall = this.thoonk.lock.require(job_stall, this);
+    this.retry = this.thoonk.lock.require(job_retry, this);
 }
 
 Job.super_ = Queue;
@@ -442,6 +457,9 @@ function job_publish(item, callback, high_priority) {
     multi.zadd("feed.published:" + this.name, Date.now(), id);
     multi.exec(function(err, reply) {
         this.thoonk.lock.unlock();
+        if(callback) {
+            callback(id, item, err);
+        }
     }.bind(this));
 }
 
@@ -454,20 +472,27 @@ function job_get(timeout, callback, timeout_callback) {
                 .zadd("feed.claimed:" + this.name, Date.now(), result[1])
                 .hget("feed.items:" + this.name, result[1])
             .exec(function(err, result) {
+                this.thoonk.lock.unlock();
                 callback(result, id);
             }.bind(this));
             var d = new Date();
         } else {
+            this.thoonk.lock.unlock();
             timeout_callback();
         }
     }.bind(this));
 }
 
-function job_finish(id, callback, error_callback, result) {
+function job_finish(id, callback, error_callback, setresult) {
     this.mredis.watch("feed.claimed:" + this.name);
     this.mredis.zrank("feed.claimed:" + this.name, id, function(err, result) {
         if(result == null) {
-            error_callback(id);
+            if(error_callback) {
+                error_callback(id);
+            } else {
+                this.thoonk.lock.unlock();
+                console.log("error finishing job ", id, err);
+            }
         } else {
             var multi = this.mredis.multi();
             multi.zrem("feed.claimed:" + this.name, id);
@@ -480,11 +505,15 @@ function job_finish(id, callback, error_callback, result) {
             multi.exec(function(err, reply) {
                 if(reply == null) {
                     //watch failed, try again
+                    this.thoonk.lock.unlock();
                     process.nextTick(function() {
-                        this.job_finish(id, callback, error_callback, result);
+                        this.finish(id, callback, error_callback, setresult);
                     }.bind(this));
                 } else {
-                    callback(id);
+                    this.thoonk.lock.unlock();
+                    if(callback) {
+                        callback(id);
+                    }
                 }
             }.bind(this));
         }
@@ -505,6 +534,7 @@ function job_cancel(id, callback) {
     this.mredis.watch("feed.claimed:" + this.name);
     this.mredis.zrank("feed.claimed:" + this.name, id, function(err, result) {
         if(result == null) {
+            this.thoonk.lock.unlock();
             if(callback !== undefined) {
                 callback("id unclaimed", id);
             }
@@ -514,6 +544,7 @@ function job_cancel(id, callback) {
                 .lpush("feed.ids:" + this.name, id)
                 .zrem("feed.claimed:" + this.name, id)
             .exec(function(err, reply) {
+                this.thoonk.lock.unlock();
                 if(reply == null) {
                     //multi interrupted so retry
                     process.nextTick(function() {
@@ -533,6 +564,7 @@ function job_stall(id, callback) {
     this.mredis.watch("feed.claimed:" + this.name);
     this.mredis.zrank("feed.claimed:" + this.name, id, function(err, result) {
         if(result == null) {
+            this.thoonk.lock.unlock();
             if(callback !== undefined) {
                 callback("id unclaimed", id);
             }
@@ -543,6 +575,7 @@ function job_stall(id, callback) {
                 .sadd("feed.stalled:" + this.name, id)
                 .zrem("feed.published:" + this.name, id)
             .exec(function(err, reply) {
+                this.thoonk.lock.unlock();
                 if(reply == null) {
                     //multi interrupted so retry
                     process.nextTick(function() {
@@ -562,6 +595,7 @@ function job_retry(id, callback) {
     this.mredis.watch("feed.stalled:" + this.name);
     this.mredis.sismember("feed.stalled:" + this.name, id, function(err, result) {
         if(result == null) {
+            this.thoonk.lock.unlock();
             if(callback !== undefined) {
                 callback("id not stalled", id);
             }
@@ -571,6 +605,7 @@ function job_retry(id, callback) {
                 .lpush("feed.ids:" + this.name, id)
                 .zadd("feed.published:" + this.name, Date.now(), id)
             .exec(function(err, reply) {
+                this.thoonk.lock.unlock();
                 if(reply == null) {
                     //multi interrupted so retry
                     process.nextTick(function() {
