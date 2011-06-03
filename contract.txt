@@ -218,7 +218,7 @@ Job:
             ZADD feed.published:[feed] [utc epoch] [id]
         EXEC if nil retry
 
-    Maintenance: //maintain job queue -- only ran by one process per jobqueue on occasion
+    Maintenance: //maintain job queue -- only ran by one process per jobqueue on occassion -- still a bit hand-wavey
         MULTI
             keys = HKEYS feed.items:[feed]
             avail = LRANGE feed.ids:[feed]
