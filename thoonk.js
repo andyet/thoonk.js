@@ -506,7 +506,7 @@ List.prototype = Object.create(Feed.prototype, {
 
 List.prototype.publish = list_publish;
 List.prototype.edit = list_edit;
-List.Prototype.publishInsert = list_publish_insert;
+List.prototype.publishInsert = list_publish_insert;
 List.prototype.publishBefore = list_publish_before;
 List.prototype.publishAfter = list_publish_after;
 List.prototype.retract = list_retract;
