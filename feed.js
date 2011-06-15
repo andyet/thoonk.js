@@ -1,13 +1,47 @@
+/**
+ * Written by Nathan Fritz and Lance Stout. Copyright © 2011 by &yet, LLC. 
+ * Released under the terms of the MIT License
+ */
+
 var EventEmitter = require("events").EventEmitter,
     uuid = require("node-uuid");
 
 /**
- * Feed object
+ * A Thoonk feed is a collection of items ordered by publication date.
  *
- * @param thoonk: instance of thoonk
- * @param name: name of the feed
- * @param config: configuration object
- * @param type: used interally
+ * The collection may either be bounded or unbounded in size. A bounded
+ * feed is created by adding the field 'max_length' to the configuration
+ * with a value greater than 0.
+ * 
+ * Redis Keys Used:
+ *     feed.ids:[feed]       -- A sorted set of item IDs.
+ *     feed.items:[feed]     -- A hash table of items keyed by ID.
+ *     feed.publish:[feed]   -- A pubsub channel for publication notices.
+ *     feed.publishes:[feed] -- A counter for number of published items.
+ *     feed.retract:[feed]   -- A pubsub channel for retraction notices.
+ *     feed.config:[feed]    -- A JSON string of configuration data.
+ *     feed.edit:[feed]      -- A pubsub channel for edit notices.
+ *
+ * Thoonk Standard API:
+ *     get_ids  -- Return the IDs of all items in the feed.
+ *     get_item -- Return a single item from the feed given its ID.
+ *     get_all  -- Return all items in the feed.
+ *     publish  -- Publish a new item to the feed, or edit an existing item.
+ *     retract  -- Remove an item from the feed.
+ */
+
+/**
+ * Create a new Feed object for a given Thoonk feed.
+ * 
+ * Note: More than one Feed objects may be create for the same
+ *       Thoonk feed, and creating a Feed object does not
+ *       automatically generate the Thoonk feed itself.
+ * 
+ * Arguments:
+ *     thoonk -- The main Thoonk object.
+ *     feed   -- The name of the feed.
+ *     config -- Optional dictionary of configuration values.
+ *     type   -- Internal use only.
  */
 function Feed(thoonk, name, config, type) {
     EventEmitter.call(this);
@@ -55,6 +89,25 @@ function feedReady() {
     this.subscribed = true;
 }
 
+/**
+ * Publish an item to the feed, or replace an existing item.
+ * 
+ * Newly published items will be at the top of the feed, while
+ * edited items will remain in their original order.
+ * 
+ * If the feed has a max length, then the oldest entries will
+ * be removed to maintain the maximum length.
+ * 
+ * Arguments:
+ *     item     -- The content of the item to add to the feed.
+ *     id       -- Optional ID to use for the item, if the ID already
+ *                 exists, the existing item will be replaced.
+ *     callback -- Executed upon sucessful publish.
+ * 
+ * Callback Arguments:
+ *     item -- The conent of the published item.
+ *     id   -- The ID assigned to the published item.
+ */
 function feedPublish(item, id, callback) {
     if(id == null) {
         id = uuid();
@@ -107,6 +160,16 @@ function feedPublish(item, id, callback) {
     }
 }
 
+/**
+ * Remove an item from the feed.
+ * 
+ * Arguments:
+ *     id       -- The ID value of the item to remove.
+ *     callback -- Executed on successful retraction.
+ *
+ * Callback Arguments:
+ *     id -- ID of the removed item. 
+ */
 function feedRetract(id, callback) {
     this.mredis.watch('feed.ids:' + this.name, function(err, reply) {
         this.mredis.zrank('feed.ids:' + this.name, function(err, reply) {
@@ -133,16 +196,72 @@ function feedRetract(id, callback) {
     }.bind(this));
 }
 
-
+/**
+ * Return the set of IDs used by items in the feed."""
+ *
+ * Arguments:
+ *     callback -- 
+ *
+ * Callback Arguments:
+ *     error -- A string or null.
+ *     reply -- The Redis reply object.
+ */
 function feedGetIds(callback) {
     return this.mredis.zrange("feed.ids:" + this.name, 0, -1, callback);
 }
 
+/**
+ * Retrieve a single item from the feed.
+ *
+ * Arguments:
+ *     id       -- The ID of the item to retrieve.
+ *     callback -- 
+ *
+ * Callback Arguments:
+ *     error -- A string or null.
+ *     reply -- The Redis reply object.
+ */
 function feedGetItem(id, callback) {
     return this.mredis.hget("feed.items:" + this.name, id, callback);
 }
 
-function feedSubscribe(publish_callback, edit_callback, retract_callback, done_callback) {
+/**
+ * Retrieve all items from the feed.
+ *
+ * Arguments:
+ *     callback -- 
+ *
+ * Callback Arguments:
+ *     error -- A string or null.
+ *     reply -- The Redis reply object.
+ */
+function feedGetAll(callback) {
+    return this.mredis.hgetall("feed.items:" + this.name, callback);
+}
+
+/**
+ * Subscribe to receive events from the feed.
+ *
+ * Events:
+ *     publishes
+ *     edits
+ *     retractions
+ *
+ * Arguments:
+ *     publish_callback -- Executed on an item publish event.
+ *     edit_callback    -- Executed on an item edited event.
+ *     retract_callback -- Executed on an item removal event.
+ *
+ * Publish and Edit Callback Arguments:
+ *     name -- The name of the feed that changed.
+ *     id   -- The ID of the published or edited item.
+ *     item -- The content of the published or edited item.
+ *     
+ * Retract Callback Arguments:
+ *     name -- The name of the feed that changed.
+ *     id   -- The ID of the retracted item.
+ */
+function feedSubscribe(publish_callback, edit_callback, retract_callback) {
     this.thoonk.on('publish:' + this.name, publish_callback);
     this.thoonk.on('edit:' + this.name, edit_callback);
     this.thoonk.on('retract:' + this.name, retract_callback);
@@ -170,6 +289,7 @@ Feed.prototype.publish = feedPublish;
 Feed.prototype.retract = feedRetract;
 Feed.prototype.getIds = feedGetIds;
 Feed.prototype.getItem = feedGetItem;
+Feed.prototype.getAll = feedGetAll;
 Feed.prototype.subscribe = feedSubscribe;
 Feed.prototype.ready = feedReady;
 
