@@ -1,11 +1,17 @@
+/**
+ * Written by Nathan Fritz and Lance Stout. Copyright © 2011 by &yet, LLC. 
+ * Released under the terms of the MIT License
+ */
+
 var uuid = require("node-uuid"),
     redis = require("redis"),
     padlock = require("padlock"),
     EventEmitter = require("events").EventEmitter;
 
 /**
- * Thoonk is a persistent (and fast!) system for push feeds, queues, and jobs which leverages Redis. Thoonk.js is the
- * node.js implementation of Thoonk, and is interoperable with other versions of Thoonk (currently Thoonk.py).
+ * Thoonk is a persistent (and fast!) system for push feeds, queues, and jobs
+ * which leverages Redis. Thoonk.js is the node.js implementation of Thoonk, and
+ * is interoperable with other versions of Thoonk (currently Thoonk.py).
  * 
  * @param host
  * @param port
@@ -90,13 +96,18 @@ Thoonk.prototype.handle_message = function(channel, msg) {
 };
 
 /**
- * Create a new feed. A feed is a subject that you can publish items to (string, binary, json, xml, whatever), each with
- * a unique id (assigned or generated). Other apps and services may subscribe to your feeds and recieve
- * new/update/retract notices on your feeds. Each feed persists published items that can later be queried. Feeds may
- * also be configured for various behaviors, such as max number of items, default serializer, friendly title, etc.
+ * Create a new feed. A feed is a subject that you can publish items to
+ * (string, binary, json, xml, whatever), each with a unique id (assigned or
+ * generated). Other apps and services may subscribe to your feeds and recieve
+ * new/update/retract notices on your feeds. Each feed persists published
+ * items that can later be queried. Feeds may also be configured for various
+ * behaviors, such as max number of items, default serializer, friendly title,
+ * etc.
  * 
- * @param name The name of the feed to be created. If the feed has already been created it will not be recreated.
- * @param config Configuration settings for the feed such as max items, default serializer, etc. 
+ * @param name The name of the feed to be created. If the feed has already been
+ *             created it will not be recreated.
+ * @param config Configuration settings for the feed such as max items, default
+ *               serializer, etc.
  */
 Thoonk.prototype.create = function(name, config) {
     this.mredis.sadd("feeds", name, function(err, result) {
@@ -111,7 +122,8 @@ Thoonk.prototype.create = function(name, config) {
 };
 
 /**
- * Update the configuration of the feed. This will overwrite any previous settings that may have been set.
+ * Update the configuration of the feed. This will overwrite any previous
+ * settings that may have been set.
  * 
  * @param feed The feed name
  * @param config The configuration settings
