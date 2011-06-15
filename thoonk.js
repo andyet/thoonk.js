@@ -16,14 +16,18 @@ var uuid = require("node-uuid"),
  * @param host
  * @param port
  */
-function Thoonk(host, port) {
+function Thoonk(host, port, db) {
     if(!host) { host = "127.0.0.1"; }
     if(!port) { port = 6379; }
+    if(!db) { db = 0; }
     EventEmitter.call(this);
     this.lredis = redis.createClient(port, host);
+    this.lredis.select(db);
     this.lredis.subscribe("newfeed", "delfeed", "conffeed");
     this.mredis = redis.createClient(port, host);
+    this.mredis.select(db);
     this.bredis = redis.createClient(port, host);
+    this.bredis.select(db);
     this.lock = new padlock.Padlock();
 
     this.instance = uuid();
