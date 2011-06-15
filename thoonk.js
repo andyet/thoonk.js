@@ -30,7 +30,6 @@ function Thoonk(host, port) {
     this.mredis.on("error", function(error) {
         console.log("Error " + error);
     });
-    //TODO: on disconnect, reconn
 }
 
 //extend Thoonk with EventEmitter
@@ -204,9 +203,11 @@ Thoonk.prototype.quit = function() {
 
 var Feed = require("./feed.js").Feed,
     Queue = require("./queue.js").Queue,
-    Job = require("./job.js").Job;
+    Job = require("./job.js").Job,
+    List = require("./list.js").List;
 
 exports.Thoonk = Thoonk;
 exports.Feed = Feed;
+exports.List = List;
 exports.Queue = Queue;
 exports.Job = Job;

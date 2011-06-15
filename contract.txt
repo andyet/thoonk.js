@@ -71,7 +71,7 @@ List:
 
     Edit:
         WATCH feed.items:[feed]
-        HEXISTS feed.items:[feed] [id] //if not: fail
+        HEXISTS feed.items:[feed] [id] //if not: UNWATCH fail
         MULTI
             HSET feed.items:[feed] [id] [item]
             INCR feed.publishes:[feed]
@@ -80,7 +80,7 @@ List:
 
     Publish Before:
         WATCH feed.items:[feed]
-        HEXISTS feed.items:[feed] [before id] //if not: fail
+        HEXISTS feed.items:[feed] [before id] //if not: UNWATCH fail
         id = INCR feed.idincr:[feed]
         MULTI
             LINSERT feed.ids:[feed] BEFORE [before id] [id]
@@ -91,7 +91,7 @@ List:
     
     Publish After:
         WATCH feed.items:[feed]
-        HEXISTS feed.items:[feed] [after id] //if not: fail
+        HEXISTS feed.items:[feed] [after id] //if not: UNWATCH, fail
         id = INCR feed.idincr:[feed]
         MULTI
             LINSERT feed.ids:[feed] AFTER [after id] [id]
