@@ -21,11 +21,11 @@ happy.once("ready", function () {
             happy.publish("neehaw4", "4");
             happy.publish("neehaw5", "5");
             console.log("starting...");
-            happy.get_item("1", function(err, reply) {
+            happy.getItem("1", function(err, reply) {
                 console.log("getting one", reply);
             });
             happy.publish("neehaw6", "1");
-            happy.get_item("1", function(err, reply) {
+            happy.getItem("1", function(err, reply) {
                 console.log("getting one", reply);
             });
             happy.publish("neehaw7", "1");
