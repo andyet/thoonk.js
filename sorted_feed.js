@@ -5,7 +5,7 @@
 
 var Feed = require("./feed.js").Feed;
 
-function SortedFeedt(thoonk, name, config) {
+function SortedFeed(thoonk, name, config) {
     Feed.call(this, thoonk, name, config, 'sorted_feed');
     this.publish = this.thoonk.lock.require(sortedFeedPublish, this);
     this.edit = this.thoonk.local.require(sortedFeedEdit, this);
