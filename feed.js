@@ -251,6 +251,7 @@ function feedGetAll(callback) {
  *     publish_callback -- Executed on an item publish event.
  *     edit_callback    -- Executed on an item edited event.
  *     retract_callback -- Executed on an item removal event.
+ *     done_callback    -- Executed when subscription is completed.
  *
  * Publish and Edit Callback Arguments:
  *     name -- The name of the feed that changed.
@@ -260,8 +261,10 @@ function feedGetAll(callback) {
  * Retract Callback Arguments:
  *     name -- The name of the feed that changed.
  *     id   -- The ID of the retracted item.
+ *
+ * Done Callback Arguments: None
  */
-function feedSubscribe(publish_callback, edit_callback, retract_callback) {
+function feedSubscribe(publish_callback, edit_callback, retract_callback, done_callback) {
     this.thoonk.on('publish:' + this.name, publish_callback);
     this.thoonk.on('edit:' + this.name, edit_callback);
     this.thoonk.on('retract:' + this.name, retract_callback);
