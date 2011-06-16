@@ -15,16 +15,16 @@ var Feed = require("./feed.js").Feed;
  *                            change events.
  * 
  * Thoonk Standard API:
- *     append    -- Append an item to the end of the feed.
- *     edit      -- Edit an item in-place.
- *     get_all   -- Return all items in the feed.
- *     get_ids   -- Return the IDs of all items in the feed.
- *     get_item  -- Return a single item from the feed given its ID.
- *     prepend   -- Add an item to the beginning of the feed.
- *     retract   -- Remove an item from the feed.
- *     publish   -- Add an item to the end of the feed.
- *     publish_after  -- Add an item immediately before an existing item.
- *     publish_before -- Add an item immediately after an existing item.
+ *     append   -- Append an item to the end of the feed.
+ *     edit     -- Edit an item in-place.
+ *     getAll   -- Return all items in the feed.
+ *     getIds   -- Return the IDs of all items in the feed.
+ *     getItem  -- Return a single item from the feed given its ID.
+ *     prepend  -- Add an item to the beginning of the feed.
+ *     retract  -- Remove an item from the feed.
+ *     publish  -- Add an item to the end of the feed.
+ *     publishAfter  -- Add an item immediately before an existing item.
+ *     publishBefore -- Add an item immediately after an existing item.
  */
 function SortedFeed(thoonk, name, config) {
     Feed.call(this, thoonk, name, config, 'sorted_feed');
