@@ -120,7 +120,7 @@ List:
         else UNWATCH feed.ids:[feed]
 
     Get IDs:
-        ZRANGE feed.ids:[feed] 0 -1
+        LRANGE feed.ids:[feed] 0 -1
 
     Get Items:
         HGET feed.items:[feed] [id]
