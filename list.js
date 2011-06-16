@@ -2,10 +2,12 @@ var Feed = require("./feed.js").Feed;
 
 function List(thoonk, name, config) {
     Feed.call(this, thoonk, name, config, 'list');
+    this.publish = this.thoonk.lock.require(listPublish, this);
+    this.edit = this.thoonk.local.require(listEdit, this);
 }
 
-
-function list_publish(item, callback) {
+//callback(item, id)
+function listPublish(item, callback) {
     this.mredis.incr('feed.idincr:' + this.name, function(err, reply) {
         var id = reply;
         this.mredis.multi()
@@ -15,12 +17,13 @@ function list_publish(item, callback) {
             .publish('feed.publish:' + this.name, id + '\x00' + item)
         .exec(function(err, reply) {
             this.thoonk.lock.unlock();
-            callback(err, id, item);
+            callback(item, id);
         }.bind(this));
     }.bind(this));
 }
 
-function list_edit(id, item, callback) {
+//callback(item, id)
+function listEdit(id, item, callback) {
     this.mredis.watch('feed.items:' + this.name, function(err, reply) {
         this.mredis.hexists('feed.items:' + this.name, id, function(err, reply) {
             if(!reply) {
@@ -36,19 +39,20 @@ function list_edit(id, item, callback) {
                 .publish('feed.publish:' + this.name, id + '\x00' + item)
             .exec(function(err, reply) {
                 this.thoonk.lock.unlock();
-                if(reply == null) {
+                if(!reply) {
                     process.nextTick(function() {
                         this.edit(id, item, callback);
                     }.bind(this));
                 } else {
-                    if(callback) { callback(err, id, item); }
+                    if(callback) { callback(item, id); }
                 }
             }.bind(this));
         }.bind(this));
     }.bind(this));
 }
 
-function list_publish_insert(item, before_id, callback, placement) {
+//callback(item, id);
+function listPublishInsert(item, before_id, callback, placement) {
     this.mredis.watch('feed.items:' + this.name, function(err, reply) {
         this.mredis.hexists('feed.items:' + this.name, before_id, function(err, reply) {
             if(!reply) {
@@ -67,12 +71,12 @@ function list_publish_insert(item, before_id, callback, placement) {
                     .publish('feed.publish:' + this.name, id + '\x00' + item)
                 .exec(function(err, reply) {
                     this.thoonk.lock.unlock();
-                    if(reply == null) {
+                    if(!reply) {
                         process.nexttick(function() {
                             this.publishInsert(item, before_id, callback, placement);
                         }.bind(this));
                     } else {
-                        if(callback) { callback(err, id, item); }
+                        if(callback) { callback(item, id); }
                     }
                 }.bind(this));
             }.bind(this));
@@ -80,21 +84,22 @@ function list_publish_insert(item, before_id, callback, placement) {
     }.bind(this));
 }
 
-function list_publish_before(item, after_id, callback) {
+function listPublishBefore(item, after_id, callback) {
     list_publish_insert.call(this, item, after_id, callback, 'BEFORE');
 }
 
-function list_publish_after(item, after_id, callback) {
+function listPublishAfter(item, after_id, callback) {
     list_publish_insert.call(this, item, after_id, callback, 'AFTER');
 }
 
-function list_retract(id, callback) {
+//callback(id, error_msg);
+function listRetract(id, callback) {
     this.mredis.watch('feed.items:' + this.name, function(err, reply) {
         this.mredis.hexists('feed.items:' + this.name, id, function(err, reply) {
             if(!reply) {
                 this.mredis.unwatch(function(err, reply) {
                     this.thoonk.lock.unlock();
-                    if(callback) { callback('DoesNotExist', id); }
+                    if(callback) { callback(id, 'Does not exist'); }
                 }.bind(this));
                 return;
             }
@@ -108,28 +113,28 @@ function list_retract(id, callback) {
                         this.retract(id, callback);
                     }.bind(this));
                 } else {
-                    if(callback) { callback(err, id); }
+                    if(callback) { callback(id, null); }
                 }
             }.bind(this));
         }.bind(this));
     }.bind(this));
 }
 
-function list_get_ids(callback) {
+function listGetIds(callback) {
     this.mredis.lrange('feed.ids:' + this.name, 0, -1, function(err, reply) {
-        callback(err, reply);
+        callback(reply);
     }.bind(this));
 }
 
-function list_get_item(id, callback) {
+function listGetItem(id, callback) {
     this.mredis.hget('feed.items:' + this.name, id, function(err, reply) {
-        callback(err, reply);
+        callback(reply);
     }.bind(this));
 }
 
-function list_get_all(callback) {
+function listGetAll(callback) {
     this.mredis.hgetall('feed.items:' + this.name, function(err, reply) {
-        callback(err, reply);
+        callback(reply);
     }.bind(this));
 }
 
@@ -141,10 +146,10 @@ List.prototype = Object.create(Feed.prototype, {
     }
 });
 
-List.prototype.publish = list_publish;
-List.prototype.edit = list_edit;
-List.prototype.publishInsert = list_publish_insert;
-List.prototype.publishBefore = list_publish_before;
-List.prototype.publishAfter = list_publish_after;
-List.prototype.retract = list_retract;
-List.prototype.getIds = list_get_ids;
+List.prototype.publish = listPublish;
+List.prototype.edit = listEdit;
+List.prototype.publishInsert = listPublishInsert;
+List.prototype.publishBefore = listPublishBefore;
+List.prototype.publishAfter = listPublishAfter;
+List.prototype.retract = listRetract;
+List.prototype.getIds = listGetIds;
