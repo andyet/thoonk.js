@@ -43,16 +43,16 @@ function Queue(thoonk, name, config) {
  * 
  * Arguments:
  *     item     -- The content to add to the queue.
+ *     callback -- Executed when the items is sucessfully published.
  *     priority -- Optional priority; if equal to True then
  *                 the item will be inserted at the head of the
  *                 queue instead of the end.
- *     callback -- Executed when the items is sucessfully published.
  *
  * Callback Arguments:
  *     item -- The content of the published item.
  *     id   -- The ID of the of published item.
  */
-function queuePublish(item, priority, callback) {
+function queuePublish(item, callback, priority) {
     id = uuid();
     var multi = this.mredis.multi();
     if(priority) {
@@ -88,7 +88,7 @@ function queuePublish(item, priority, callback) {
  *     id   -- The ID of the of published item.
  */ 
 function queuePublishFront(item, callback) {
-    this.put(item, true, callback);
+    this.put(item, callback, true);
 }
 
 /**

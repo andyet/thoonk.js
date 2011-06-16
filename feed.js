@@ -63,7 +63,7 @@ function Feed(thoonk, name, config, type) {
             } else {
                 if(!type) { type = 'feed' }
                 if(!config.hasOwnProperty('type')) { config.type = type; }
-                this.thoonk.set_config(this.name, config);
+                this.thoonk.setConfig(this.name, config);
             }
         }.bind(this),
         //doesn't

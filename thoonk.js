@@ -117,7 +117,7 @@ Thoonk.prototype.create = function(name, config) {
     this.mredis.sadd("feeds", name, function(err, result) {
         // if we added it, configure it
         if(result != 0) { 
-            this.set_config(name, config, true);
+            this.setConfig(name, config, true);
         } else {
             this.emit("ready:" + name);
         }
@@ -132,7 +132,7 @@ Thoonk.prototype.create = function(name, config) {
  * @param feed The feed name
  * @param config The configuration settings
  */
-Thoonk.prototype.set_config = function(feed, config, _newfeed) {
+Thoonk.prototype.setConfig = function(feed, config, _newfeed) {
     if(!config.hasOwnProperty('type')) {
         config['type'] = 'feed';
     }

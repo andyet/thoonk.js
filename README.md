@@ -72,8 +72,9 @@ configured. Then run:
 
 ## Creating a Feed ##
 
-    thoonk.feed(feed_name, {"max_length": 50})
-    thoonk.once("ready", function() {
+    feed = thoonk.feed(feed_name, {"max_length": 50})
+    //will create a feed if it doesn't exist -- config optional.
+    feed.once("ready", function() {
         //manipulate the feed
     });
 
@@ -83,9 +84,9 @@ The same is true for queues, jobs, and sorted feeds:
     test_job = thoonk.job('job channel name');
     test_list = thoonk.sortedFeed('sorted feed name');
 
-## Configuring a Feed ##
+## Re-configuring a Feed ##
 
-    thoonk.set_config(feed_name, json_config)
+    thoonk.setConfig(feed_name, json_config)
 
 ### Supported Configuration Options ###
 
@@ -205,12 +206,12 @@ After an existing item.
 
 ### Publishing To a Queue ###
 
-A normal put is FIFO while setting the second attrib to true, it is FILO
+A normal put is FIFO while setting the last attrib to true, it is LIFO
 
-    queue.put('item', false, function(item, id) {
-    });
-    queue.put('priority item', true, function(item, id) {
-    });
+    queue.put('item', function(item, id) {
+    }, false);
+    queue.put('priority item', function(item, id) {
+    }, true);
 
 ### Popping a Queue ###
     A timeout of null or 0 will wait forever.
