@@ -1,13 +1,18 @@
+/**
+ * Written by Nathan Fritz and Lance Stout. Copyright © 2011 by &yet, LLC. 
+ * Released under the terms of the MIT License
+ */
+
 var Feed = require("./feed.js").Feed;
 
-function List(thoonk, name, config) {
-    Feed.call(this, thoonk, name, config, 'list');
-    this.publish = this.thoonk.lock.require(listPublish, this);
-    this.edit = this.thoonk.local.require(listEdit, this);
+function SortedFeedt(thoonk, name, config) {
+    Feed.call(this, thoonk, name, config, 'sorted_feed');
+    this.publish = this.thoonk.lock.require(sortedFeedPublish, this);
+    this.edit = this.thoonk.local.require(sortedFeedEdit, this);
 }
 
 //callback(item, id)
-function listPublish(item, callback) {
+function sortedFeedPublish(item, callback) {
     this.mredis.incr('feed.idincr:' + this.name, function(err, reply) {
         var id = reply;
         this.mredis.multi()
@@ -23,7 +28,7 @@ function listPublish(item, callback) {
 }
 
 //callback(item, id)
-function listEdit(id, item, callback) {
+function sortedFeedEdit(id, item, callback) {
     this.mredis.watch('feed.items:' + this.name, function(err, reply) {
         this.mredis.hexists('feed.items:' + this.name, id, function(err, reply) {
             if(!reply) {
@@ -52,7 +57,7 @@ function listEdit(id, item, callback) {
 }
 
 //callback(item, id);
-function listPublishInsert(item, before_id, callback, placement) {
+function sortedFeedPublishInsert(item, before_id, callback, placement) {
     this.mredis.watch('feed.items:' + this.name, function(err, reply) {
         this.mredis.hexists('feed.items:' + this.name, before_id, function(err, reply) {
             if(!reply) {
@@ -84,16 +89,16 @@ function listPublishInsert(item, before_id, callback, placement) {
     }.bind(this));
 }
 
-function listPublishBefore(item, after_id, callback) {
-    list_publish_insert.call(this, item, after_id, callback, 'BEFORE');
+function sortedFeedPublishBefore(item, after_id, callback) {
+    sortedFeedPublishInsert.call(this, item, after_id, callback, 'BEFORE');
 }
 
-function listPublishAfter(item, after_id, callback) {
-    list_publish_insert.call(this, item, after_id, callback, 'AFTER');
+function sortedFeedPublishAfter(item, after_id, callback) {
+    sortedFeedPublishInsert.call(this, item, after_id, callback, 'AFTER');
 }
 
 //callback(id, error_msg);
-function listRetract(id, callback) {
+function sortedFeedRetract(id, callback) {
     this.mredis.watch('feed.items:' + this.name, function(err, reply) {
         this.mredis.hexists('feed.items:' + this.name, id, function(err, reply) {
             if(!reply) {
@@ -120,36 +125,36 @@ function listRetract(id, callback) {
     }.bind(this));
 }
 
-function listGetIds(callback) {
+function sortedFeedGetIds(callback) {
     this.mredis.lrange('feed.ids:' + this.name, 0, -1, function(err, reply) {
         callback(reply);
     }.bind(this));
 }
 
-function listGetItem(id, callback) {
+function sortedFeedGetItem(id, callback) {
     this.mredis.hget('feed.items:' + this.name, id, function(err, reply) {
         callback(reply);
     }.bind(this));
 }
 
-function listGetAll(callback) {
+function sortedFeedGetAll(callback) {
     this.mredis.hgetall('feed.items:' + this.name, function(err, reply) {
         callback(reply);
     }.bind(this));
 }
 
-List.super_ = Feed;
-List.prototype = Object.create(Feed.prototype, {
+SortedFeed.super_ = Feed;
+SortedFeed.prototype = Object.create(Feed.prototype, {
     constructor: {
-        value: List,
+        value: SortedFeed,
         enumerable: false
     }
 });
 
-List.prototype.publish = listPublish;
-List.prototype.edit = listEdit;
-List.prototype.publishInsert = listPublishInsert;
-List.prototype.publishBefore = listPublishBefore;
-List.prototype.publishAfter = listPublishAfter;
-List.prototype.retract = listRetract;
-List.prototype.getIds = listGetIds;
+SortedFeed.prototype.publish = sortedFeedPublish;
+SortedFeed.prototype.edit = sortedFeedEdit;
+SortedFeed.prototype.publishInsert = sortedFeedPublishInsert;
+SortedFeed.prototype.publishBefore = sortedFeedPublishBefore;
+SortedFeed.prototype.publishAfter = sortedFeedPublishAfter;
+SortedFeed.prototype.retract = sortedFeedRetract;
+SortedFeed.prototype.getIds = sortedFeedGetIds;

@@ -220,7 +220,7 @@ Thoonk.prototype.quit = function() {
 var Feed = require("./feed.js").Feed,
     Queue = require("./queue.js").Queue,
     Job = require("./job.js").Job,
-    List = require("./list.js").List;
+    List = require("./sorted_feed.js").List;
 
 exports.Thoonk = Thoonk;
 exports.Feed = Feed;
