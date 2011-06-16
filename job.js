@@ -206,14 +206,15 @@ function jobFinish(id, callback, setresult, timeout) {
  *
  * Callback Arguments:
  *     id       -- The ID of the job.
+ *     reply    -- The result.
  *     timedout -- Flag indicating that the request had timed out.
  */
 function jobGetResult(id, timeout, callback) {
     this.mredis.blpop("feed.jobfinished:" + this.name + "\x00" + id, timeout, function(err, result) {
         if(err) {
-            callback(id, true);
+            callback(id, result, true);
         } else {
-            callback(id, false);
+            callback(id, result, false);
         }
     }.bind(this));
 }
@@ -244,7 +245,7 @@ function jobCancel(id, callback) {
                 this.thoonk.lock.unlock();
                 if(!reply) {
                     process.nextTick(function() {
-                        this.jobCancel(id, callback);
+                        this.cancel(id, callback);
                     }.bind(this));
                 } else {
                     if(callback) { callback(id, null); }
@@ -320,7 +321,46 @@ function jobRetry(id, callback) {
                 this.thoonk.lock.unlock();
                 if(!reply) {
                     process.nextTick(function() {
-                        this.jobRetry(id, callback);
+                        this.retry(id, callback);
+                    }.bind(this));
+                } else {
+                    if(callback) { callback(id, null); }
+                }
+            }.bind(this));
+        }
+    }.bind(this));
+}
+
+/**
+ * Delete a job from anywhere in the process.
+ *
+ * Arguments:
+ *     id       -- The ID of the job to delete.
+ *     callback -- Executed if an error occurred.
+ *
+ * Callback Arguments:
+ *     id    -- The ID of the deleted job.
+ *     error -- A string description of the error.
+ */
+function jobRetract(id, callback) {
+    this.mredis.watch("feed.items:" + this.name);
+    this.mredis.hexists("feed.items:" + this.name, id, function(err, result) {
+        if(result == null) {
+            this.thoonk.lock.unlock();
+            if(callback) { callback(id, "id not found"); }
+        } else {
+            this.mredis.multi()
+                .hdel('feed:items:' + this.name, id)
+                .hdel('feed.cancelled:' + this.name, id)
+                .zrem('feed.published:' + this.name, id)
+                .srem('feed.stalled:' + this.name, id)
+                .zrem('feed.claimed:' + this.name, id)
+                .lrem('feed.ids:' + this.name, 1, id)
+            .exec(function(err, reply) {
+                this.thoonk.lock.unlock();
+                if(!reply) {
+                    process.nextTick(function() {
+                        this.retact(id, callback);
                     }.bind(this));
                 } else {
                     if(callback) { callback(id, null); }
@@ -346,5 +386,6 @@ Job.prototype.getResult = jobGetResult;
 Job.prototype.cancel = jobCancel;
 Job.prototype.stall = jobStall;
 Job.prototype.retry = jobRetry;
+Job.prototype.retract = jobRetract;
 
 exports.Job = Job;

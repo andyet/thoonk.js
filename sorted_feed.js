@@ -12,19 +12,27 @@ function SortedFeed(thoonk, name, config) {
 }
 
 //callback(item, id)
-function sortedFeedPublish(item, callback) {
+function sortedFeedPublish(item, callback, prepend) {
     this.mredis.incr('feed.idincr:' + this.name, function(err, reply) {
         var id = reply;
-        this.mredis.multi()
-            .lpush('feed.ids:' + this.name, id)
-            .hset('feed.items:' + this.name, id, item)
-            .incr('feed.publishes:' + this.name)
-            .publish('feed.publish:' + this.name, id + '\x00' + item)
-        .exec(function(err, reply) {
+        var multi = this.mredis.multi();
+        if(!prepend) {
+            multi.rpush('feed.ids:' + this.name, id);
+        } else {
+            multi.lpush('feed.ids:' + this.name, id);
+        }
+        multi.hset('feed.items:' + this.name, id, item);
+        multi.incr('feed.publishes:' + this.name);
+        multi.publish('feed.publish:' + this.name, id + '\x00' + item);
+        multi.exec(function(err, reply) {
             this.thoonk.lock.unlock();
             callback(item, id);
         }.bind(this));
     }.bind(this));
+}
+
+function sortedFeedPrepend(item, callback) {
+    this.publish(item, callback, true);
 }
 
 //callback(item, id)
@@ -152,9 +160,13 @@ SortedFeed.prototype = Object.create(Feed.prototype, {
 });
 
 SortedFeed.prototype.publish = sortedFeedPublish;
+SortedFeed.prototype.append = sortedFeedPublish;
+SortedFeed.prototype.prepend = sortedFeedPrepend;
 SortedFeed.prototype.edit = sortedFeedEdit;
 SortedFeed.prototype.publishInsert = sortedFeedPublishInsert;
 SortedFeed.prototype.publishBefore = sortedFeedPublishBefore;
 SortedFeed.prototype.publishAfter = sortedFeedPublishAfter;
 SortedFeed.prototype.retract = sortedFeedRetract;
 SortedFeed.prototype.getIds = sortedFeedGetIds;
+
+exports.SortedFeed = SortedFeed;

@@ -169,6 +169,7 @@ function feedPublish(item, id, callback) {
  *
  * Callback Arguments:
  *     id -- ID of the removed item. 
+ *     err_msg -- A string or null.
  */
 function feedRetract(id, callback) {
     this.mredis.watch('feed.ids:' + this.name, function(err, reply) {
@@ -191,6 +192,7 @@ function feedRetract(id, callback) {
             } else {
                 this.thoonk.lock.unlock();
                 this.mredis.unwatch('feed.ids:' + this.name);
+                callback(id, "Id does not exist.");
             }
         }.bind(this));
     }.bind(this));
@@ -251,6 +253,7 @@ function feedGetAll(callback) {
  *     publish_callback -- Executed on an item publish event.
  *     edit_callback    -- Executed on an item edited event.
  *     retract_callback -- Executed on an item removal event.
+ *     placement_callback -- Placeholder for sorted feed item placement.
  *     done_callback    -- Executed when subscription is completed.
  *
  * Publish and Edit Callback Arguments:
@@ -264,7 +267,7 @@ function feedGetAll(callback) {
  *
  * Done Callback Arguments: None
  */
-function feedSubscribe(publish_callback, edit_callback, retract_callback, done_callback) {
+function feedSubscribe(publish_callback, edit_callback, retract_callback, placement_callback, done_callback) {
     this.thoonk.on('publish:' + this.name, publish_callback);
     this.thoonk.on('edit:' + this.name, edit_callback);
     this.thoonk.on('retract:' + this.name, retract_callback);

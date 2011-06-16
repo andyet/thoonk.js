@@ -1,6 +1,20 @@
 var EventEmitter = require("events").EventEmitter;
+var fs = require('fs');
 
-function TestObject(should_events) {
+function LoadConfig(callback) {
+    fs.readFile('testconfig.json', 'utf-8', function(err, data) {
+        if(err) throw err;
+        console.log(data);
+        var config = JSON.parse(data);
+        if(config.enabled) {
+            callback(config);
+        } else {
+            callback(false);
+        }
+    });
+}
+
+function TestObject(should_events, start_function) {
     EventEmitter.call(this);
     this.check_events = should_events;
     this.error_events = [];
@@ -8,29 +22,64 @@ function TestObject(should_events) {
     this.manual_errors = [];
     this.time = 0;
     this.extra_tests = 0;
+    this.start_function = start_function;
+    this.configobj = {};
 
-    this.error = function(msg) {
-        process.stdout.write("X");
-        process.stdout.flush();
-        this.manual_errors.push(msg);
+    this.config = function(config) {
+        this.configobj = config;
+    }
+
+    this.start = function() {
+        this.start_function(this.configobj);
+    }
+
+    this.add = function(eevent) {
+        this.check_events.push(eevent);
+    }
+
+    this.test = function(success, msg) {
+        this.extra_tests++;
+        if(success) {
+            process.stdout.write(".");
+            process.stdout.flush();
+        } else {
+            process.stdout.write("x");
+            process.stdout.flush();
+            this.manual_errors.push(msg);
+        }
     }
 
     this.compare = function(item1, item2) {
-        if(item1 == item2) {
+        var pass = true;
+        for(key in item1) {
+            if(item1[key] != item2[key]) {
+                pass = false;
+                break;
+            }
+        }
+        if(pass) {
+            for(key in item2) {
+                if(item2[key] != item1[key]) {
+                    pass = false;
+                    break
+                }
+            }
+        }
+        if(pass) {
             process.stdout.write(".");
             process.stdout.flush();
             this.extra_tests += 1;
         } else {
-            process.stdout.write("X");
+            this.manual_errors.push(JSON.stringify(item1) + " != " + JSON.stringify(item2));
+            process.stdout.write("x");
             process.stdout.flush();
-            this.manual_errors.push(item1 + " != " + item2);
         }
     }
 
     this.should = function(eevent) {
         if(this.check_events.indexOf(eevent) == -1) {
             this.error_events.push(eevent); 
-            process.stdout.write("X");
+            process.stdout.write("x");
             process.stdout.flush();
         } else {
             this.good_events.push(eevent);
@@ -48,11 +97,10 @@ function TestObject(should_events) {
             this.manual_errors.forEach(function(msg, idx) {
                 console.log(msg);
             });
-            this.emit("done");
+            this.emit("done", this.configobj);
         } else if (this.good_events.length == this.check_events.length) {
             console.log(': ' + (this.extra_tests + this.good_events.length) + ' Successful tests.');
-            console.log("Done!");
-            this.emit("done");
+            this.emit("done", this.configobj);
         } else {
             if(this.time > timeout) {
                 console.log(':');
@@ -62,6 +110,7 @@ function TestObject(should_events) {
                 this.check_events.forEach(function(eevent, idx) {
                     console.log('Event "' + eevent + '" should have happened.'); 
                 });
+                this.emit("done", this.configobj);
             } else {
                 var that = this;
                 setTimeout(function() {
@@ -83,3 +132,4 @@ TestObject.prototype = Object.create(EventEmitter.prototype, {
 });
 
 exports.TestObject = TestObject;
+exports.LoadConfig = LoadConfig;

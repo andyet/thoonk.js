@@ -12,5 +12,5 @@
     "man": [],
     "directories": {"example": "examples/"},
     "repository": {"type": "git", "url": "http://github.com/fritzy/thoonk.js.git"}, 
-    "dependencies": {"node-uuid": ">=1.1.0", "redis": ">=0.5.5"}
+    "dependencies": {"node-uuid": ">=1.1.0", "redis": ">=0.5.5", "padlock": ">=1.0.0"}
 }

@@ -189,6 +189,16 @@ Thoonk.prototype.feed = function(name, config) {
 };
 
 /**
+ * Create and return a new sorted feed.
+ * 
+ * @param name The sorted feed name
+ * @param config The sorted feed configuration settings
+ */
+Thoonk.prototype.sortedFeed = function(name, config) {
+    return new SortedFeed(this, name, config);
+};
+
+/**
  * Create and return a new queue.
  * 
  * @param name The queue name
