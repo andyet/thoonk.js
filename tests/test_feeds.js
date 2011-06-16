@@ -3,6 +3,14 @@ var TestObject = require("./testcore").TestObject,
 
 var tests = new TestObject([
     "publish:1: neehaw",
+    "publish:2: neehaw2",
+    "publish:3: neehaw3",
+    "publish:4: neehaw4",
+    "publish:5: neehaw5",
+    "publish:6: neehaw6",
+    "retract:1",
+    "retract:2",
+    "ids:3,4,5,6",
 ]);
 
 
@@ -19,11 +27,27 @@ testfeed.once("ready", function() {
             tests.should("publish:" + id + ": " + msg);
         },
         function(id, msg) {
+            console.log("updated");
         },
-        function(id, msg) {
+        function(id) {
+            tests.should("retract:" + id);
         }, 
         function() {
             testfeed.publish("neehaw", "1");
+            testfeed.publish("neehaw2", "2");
+            testfeed.publish("neehaw3", "3");
+            testfeed.publish("neehaw4", "4");
+            testfeed.publish("neehaw5", "5");
+            testfeed.publish("neehaw6", "6", function() {
+                testfeed.getIds(function(err, ids) {
+                    tests.should("ids:" + ids.join(','));
+                });
+                testfeed.getAll(function(err, all) {
+                    var other = {'3': "neehaw3", '4': "neehaw4", '5': "neehaw5", '6': "neehaw6"};
+                    tests.compare(all, other);
+                    console.log(all, other);
+                });
+            });
         }
     );
 });

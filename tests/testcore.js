@@ -15,6 +15,18 @@ function TestObject(should_events) {
         this.manual_errors.push(msg);
     }
 
+    this.compare = function(item1, item2) {
+        if(item1 == item2) {
+            process.stdout.write(".");
+            process.stdout.flush();
+            this.extra_tests += 1;
+        } else {
+            process.stdout.write("X");
+            process.stdout.flush();
+            this.manual_errors.push(item1 + " != " + item2);
+        }
+    }
+
     this.should = function(eevent) {
         if(this.check_events.indexOf(eevent) == -1) {
             this.error_events.push(eevent); 
@@ -38,7 +50,7 @@ function TestObject(should_events) {
             });
             this.emit("done");
         } else if (this.good_events.length == this.check_events.length) {
-            console.log(':');
+            console.log(': ' + (this.extra_tests + this.good_events.length) + ' Successful tests.');
             console.log("Done!");
             this.emit("done");
         } else {
