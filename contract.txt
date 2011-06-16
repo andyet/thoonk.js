@@ -115,11 +115,18 @@ Sorted Feed:
 
     Move:
         //relative_position = :3 for before 3, 3: for after 3
+        // = :end for end, begin: for begin
         WATCH feed.items:[feed]
         HEXISTS feed.items:[feed] [id] //if not: UNWATCH, fail
+        HEXISTS feed.items:[feed] [relative id] //if not: UNWATCH, fail
         MULTI
             LREM feed.ids:[feed] 1 [id]
-            LINSERT feed.ids:[feed] [BEFORE/AFTER] [relative id]
+            //if begin:
+                LPUSH feed.ids:[feed] [id]
+            //if :end
+                RPUSH feed.ids:[feed] [id]
+            //else
+                LINSERT feed.ids:[feed] [BEFORE/AFTER] [relative id]
             PUBLISH feed.position:[feed] [id]\x00[relative position]
         EXEC // if nil: retry at WATCH
     

@@ -16,14 +16,18 @@ function sortedFeedPublish(item, callback, prepend) {
     this.mredis.incr('feed.idincr:' + this.name, function(err, reply) {
         var id = reply;
         var multi = this.mredis.multi();
+        var relative;
         if(!prepend) {
             multi.rpush('feed.ids:' + this.name, id);
+            relative = 'begin:';
         } else {
             multi.lpush('feed.ids:' + this.name, id);
+            relative = ':end';
         }
         multi.hset('feed.items:' + this.name, id, item);
         multi.incr('feed.publishes:' + this.name);
         multi.publish('feed.publish:' + this.name, id + '\x00' + item);
+        multi.publish('feed.position:' + this.name, id + '\x00' + relative);
         multi.exec(function(err, reply) {
             this.thoonk.lock.unlock();
             callback(item, id);
@@ -66,6 +70,11 @@ function sortedFeedEdit(id, item, callback) {
 
 //callback(item, id);
 function sortedFeedPublishInsert(item, before_id, callback, placement) {
+    if(placement == 'BEFORE') {
+        placement = ':' + before_id;
+    } else {
+        placement = before_id + ':';
+    }
     this.mredis.watch('feed.items:' + this.name, function(err, reply) {
         this.mredis.hexists('feed.items:' + this.name, before_id, function(err, reply) {
             if(!reply) {
@@ -82,6 +91,7 @@ function sortedFeedPublishInsert(item, before_id, callback, placement) {
                     .hset('feed.items:' + this.name, id, item)
                     .inc('feed.publishes:' + this.name)
                     .publish('feed.publish:' + this.name, id + '\x00' + item)
+                    .publish('feed.position:' + this.name, id + '\x00' + placement);
                 .exec(function(err, reply) {
                     this.thoonk.lock.unlock();
                     if(!reply) {
@@ -103,6 +113,69 @@ function sortedFeedPublishBefore(item, after_id, callback) {
 
 function sortedFeedPublishAfter(item, after_id, callback) {
     sortedFeedPublishInsert.call(this, item, after_id, callback, 'AFTER');
+}
+
+function sortedFeedMove(id, relative_id, placement) {
+    var relative;
+    if(placement == 'BEFORE') {
+        relative = ':' + relative_id;
+    } else if (placement == 'AFTER') {
+        relative = relative_id + ':';
+    } else if (placement == 'BEGIN') {
+        relative = 'begin:';
+    } else if (placement == 'END') {
+        relative = ':end';
+    }
+    this.mredis.watch('feed.items:' + this.name, function(err, reply) {
+        this.mredis.hexists('feed.items:' + this.name, relative_id, function(err, reply) {
+            if(!reply) {
+                this.mredis.unwatch(function(err, reply) {
+                    this.thoonk.lock.unlock();
+                    if(callback) { callback('DoesNotExist', relative_id); }
+                }.bind(this));
+                return;
+            }
+            this.mredis.hexists('feed.items:' + this.name, id, function(err, reply) {
+                if(!reply) {
+                    this.mredis.unwatch(function(err, reply) {
+                        this.thoonk.lock.unlock();
+                        if(callback) { callback('DoesNotExist', id); }
+                    }.bind(this));
+                    return;
+                } else {
+                    var multi = this.mredis.multi();
+                    multi.lrem('feed.ids:' + this.name, 1, id);
+                    if(placement == 'BEFORE' || placement == 'AFTER') {
+                        multi.linsert('feed.ids:' + this.name, placement, relative_id, id);
+                    } else if (placement == 'BEGIN') {
+                        multi.lpush('feed.ids:' + this.name, id);
+                    } else if (placement == 'END') {
+                        multi.rpush('feed.ids:' + this.name, id);
+                    }
+                    multi.publish('feed.position:' this.name, id + '\x00', relative);
+                    multi.exec(function(err, reply) {
+                        this.thoonk.lock.unlock();
+                        if(!reply) {
+                            process.nexttick(function() {
+                                this.publishInsert(item, before_id, callback, placement);
+                            }.bind(this));
+                        } else {
+                            if(callback) { callback(item, id); }
+                        }
+                    }.bind(this));
+                }
+            }.bind(this));
+        }.bind(this));
+    }.bind(this));
+
+}
+
+function moveBefore(id, relative_id);
+    this.move(id, relative_id, 'BEFORE');
+}
+
+function moveAfter(id, relative_id);
+    this.move(id, relative_id, 'AFTER');
 }
 
 //callback(id, error_msg);
