@@ -114,12 +114,13 @@ Sorted Feed:
         EXEC // if nil: retry at WATCH
 
     Move:
-        //relative_id = :3 for before 3, 3: for after 3
+        //relative_position = :3 for before 3, 3: for after 3
         WATCH feed.items:[feed]
         HEXISTS feed.items:[feed] [id] //if not: UNWATCH, fail
         MULTI
             LREM feed.ids:[feed] 1 [id]
             LINSERT feed.ids:[feed] [BEFORE/AFTER] [relative id]
+            PUBLISH feed.position:[feed] [id]\x00[relative position]
         EXEC // if nil: retry at WATCH
     
     Retract:
