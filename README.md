@@ -118,6 +118,13 @@ The same is true for queues, jobs, and sorted feeds:
         //subscription ready
     });
 
+### Position Events 
+
+- `:42`    -- Moved before existing item ID 42.
+- `42:`    -- Moved after existing item ID 42.
+- `begin:` -- Moved to beginning of the feed.
+- `:end`   -- Moved to the end of the feed.
+
 ### Publishing to a Feed ###
 
 Publishing to a feed adds an item to the end of the feed, sorted by publish time.
@@ -324,8 +331,6 @@ Thus, the `get_result` method will return both values.
 
 # The Future of Thoonk #
 
-* Reposition/move command for Sorted Feeds
-* Position event for Sorted Feeds
 * Examples and functions for Job Maintainance
 * Live Sets
 * Live Queries of Feeds based on Live Sets
