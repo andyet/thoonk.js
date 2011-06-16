@@ -118,7 +118,8 @@ Sorted Feed:
         // = :end for end, begin: for begin
         WATCH feed.items:[feed]
         HEXISTS feed.items:[feed] [id] //if not: UNWATCH, fail
-        HEXISTS feed.items:[feed] [relative id] //if not: UNWATCH, fail
+        //if relative_position is not :end or begin:
+            HEXISTS feed.items:[feed] [relative id] //if not: UNWATCH, fail
         MULTI
             LREM feed.ids:[feed] 1 [id]
             //if begin:
@@ -126,7 +127,7 @@ Sorted Feed:
             //if :end
                 RPUSH feed.ids:[feed] [id]
             //else
-                LINSERT feed.ids:[feed] [BEFORE/AFTER] [relative id]
+                LINSERT feed.ids:[feed] [BEFORE/AFTER] [relative id] [id]
             PUBLISH feed.position:[feed] [id]\x00[relative position]
         EXEC // if nil: retry at WATCH
     

@@ -111,7 +111,8 @@ The same is true for queues, jobs, and sorted feeds:
         //retract event
     },
     function(id, position) {
-        //placeholder for position event for sorted feeds
+        //position event for sorted feed
+        //position is begin:, :end, :X, X: where X is the relative id
     },
     function() {
         //subscription ready
@@ -198,6 +199,17 @@ Before an existing item.
 After an existing item.
 
     sorted_feed.publishAfter('existing id', 'new item', function(item, id) {
+    });
+
+### Moving an Item ###
+
+    sorted_feed.moveBefore('existing id', 'relative id', function(err_msg, id, placement) {
+    });
+    sorted_feed.moveAfter('existing id', 'relative id', function(err_msg, id, placement) {
+    });
+    sorted_feed.moveBegin('existing id', function(err_msg, id, placement) {
+    });
+    sorted_feed.moveEnd('existing id', function(err_msg, id, placement) {
     });
 
 ## Using a Queue ##

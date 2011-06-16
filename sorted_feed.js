@@ -9,6 +9,9 @@ function SortedFeed(thoonk, name, config) {
     Feed.call(this, thoonk, name, config, 'sorted_feed');
     this.publish = this.thoonk.lock.require(sortedFeedPublish, this);
     this.edit = this.thoonk.local.require(sortedFeedEdit, this);
+    this.publishInsert = this.thoonk.local.require(sortedFeedPublishInsert, this);
+    this.move = this.thoonk.local.require(sortedFeedMove, this);
+    this.retract = this.thoonk.local.require(sortedFeedRetract, this);
 }
 
 //callback(item, id)
@@ -108,13 +111,14 @@ function sortedFeedPublishInsert(item, before_id, callback, placement) {
 }
 
 function sortedFeedPublishBefore(item, after_id, callback) {
-    sortedFeedPublishInsert.call(this, item, after_id, callback, 'BEFORE');
+    this.publishInsert(this, item, after_id, callback, 'BEFORE');
 }
 
 function sortedFeedPublishAfter(item, after_id, callback) {
-    sortedFeedPublishInsert.call(this, item, after_id, callback, 'AFTER');
+    this.publishInsert(item, after_id, callback, 'AFTER');
 }
 
+//callback(err_msg, id, placement);
 function sortedFeedMove(id, relative_id, placement) {
     var relative;
     if(placement == 'BEFORE') {
@@ -123,8 +127,10 @@ function sortedFeedMove(id, relative_id, placement) {
         relative = relative_id + ':';
     } else if (placement == 'BEGIN') {
         relative = 'begin:';
+        relative_id = id;
     } else if (placement == 'END') {
         relative = ':end';
+        relative_id = id;
     }
     this.mredis.watch('feed.items:' + this.name, function(err, reply) {
         this.mredis.hexists('feed.items:' + this.name, relative_id, function(err, reply) {
@@ -139,7 +145,7 @@ function sortedFeedMove(id, relative_id, placement) {
                 if(!reply) {
                     this.mredis.unwatch(function(err, reply) {
                         this.thoonk.lock.unlock();
-                        if(callback) { callback('DoesNotExist', id); }
+                        if(callback) { callback('DoesNotExist', id, placement); }
                     }.bind(this));
                     return;
                 } else {
@@ -160,7 +166,7 @@ function sortedFeedMove(id, relative_id, placement) {
                                 this.publishInsert(item, before_id, callback, placement);
                             }.bind(this));
                         } else {
-                            if(callback) { callback(item, id); }
+                            if(callback) { callback(null, id, placement); }
                         }
                     }.bind(this));
                 }
@@ -170,12 +176,20 @@ function sortedFeedMove(id, relative_id, placement) {
 
 }
 
-function moveBefore(id, relative_id);
+function sortedFeedMoveBefore(id, relative_id) {
     this.move(id, relative_id, 'BEFORE');
 }
 
-function moveAfter(id, relative_id);
+function sortedFeedMoveAfter(id, relative_id) {
     this.move(id, relative_id, 'AFTER');
+}
+
+function sortedFeedMoveBegin(id) {
+    this.move(id, null, 'BEGIN');
+}
+
+function sortedFeedMoveEnd(id) {
+    this.move(id, null, 'END');
 }
 
 //callback(id, error_msg);
@@ -241,5 +255,10 @@ SortedFeed.prototype.publishBefore = sortedFeedPublishBefore;
 SortedFeed.prototype.publishAfter = sortedFeedPublishAfter;
 SortedFeed.prototype.retract = sortedFeedRetract;
 SortedFeed.prototype.getIds = sortedFeedGetIds;
+SortedFeed.prototype.move = sortedFeedMove;
+SortedFeed.prototype.moveAfter = sortedFeedMoveAfter;
+SortedFeed.prototype.moveBefore = sortedFeedMoveBefore;
+SortedFeed.prototype.moveBegin = sortedFeedMoveBegin;
+SortedFeed.prototype.moveEnd = sortedFeedMoveEnd;
 
 exports.SortedFeed = SortedFeed;

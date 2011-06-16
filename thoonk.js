@@ -96,6 +96,10 @@ Thoonk.prototype.handle_message = function(channel, msg) {
         //retract: id
         var chans = channel.split(":");
         this.emit('retract:' + chans[1], msg);
+    } else if (channel.substring(0, 15) == 'feed.placement:') {
+        var chans = channel.split(":");
+        args = msg.split('\x00');
+        this.emit('position:' + chans[1], args[0], args[1]);
     }
 };
 
