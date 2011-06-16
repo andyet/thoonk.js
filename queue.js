@@ -1,6 +1,34 @@
+/**
+ * Written by Nathan Fritz and Lance Stout. Copyright © 2011 by &yet, LLC. 
+ * Released under the terms of the MIT License
+ */
+
 var Feed = require("./feed.js").Feed,
     uuid = require("node-uuid");
 
+/**
+ * A Thoonk queue is a typical FIFO structure, but with an
+ * optional priority override for inserting to the head
+ * of the queue.
+ *
+ * Thoonk Standard API:
+ *     publish -- Alias for put()
+ *     put     -- Add an item to the queue, with optional priority.
+ *     get     -- Retrieve the next item from the queue.
+ */
+
+/**
+ * Create a new Queue object for a given Thoonk feed.
+ * 
+ * Note: More than one Queue objects may be create for the same
+ *       Thoonk feed, and creating a Queue object does not
+ *       automatically generate the Thoonk feed itself.
+ * 
+ * Arguments:
+ *     thoonk -- The main Thoonk object.
+ *     feed   -- The name of the feed.
+ *     config -- Optional dictionary of configuration values.
+ */
 function Queue(thoonk, name, config) {
     Feed.call(this, thoonk, name, config, 'queue');
     this.publish = this.thoonk.lock.require(queuePublish, this);
@@ -8,6 +36,22 @@ function Queue(thoonk, name, config) {
     this.get = this.thoonk.lock.require(queueGet, this);
 }
 
+/**
+ * Add a new item to the queue.
+ * 
+ * (Same as self.put())
+ * 
+ * Arguments:
+ *     item     -- The content to add to the queue.
+ *     priority -- Optional priority; if equal to True then
+ *                 the item will be inserted at the head of the
+ *                 queue instead of the end.
+ *     callback -- Executed when the items is sucessfully published.
+ *
+ * Callback Arguments:
+ *     item -- The content of the published item.
+ *     id   -- The ID of the of published item.
+ */
 function queuePublish(item, priority, callback) {
     id = uuid();
     var multi = this.mredis.multi();
@@ -20,7 +64,6 @@ function queuePublish(item, priority, callback) {
     multi.incr("feed.publishes:" + this.name);
     multi.exec(function(err, replies) {
         this.thoonk.lock.unlock();
-        //TODO error handler
         if(!replies) {
             process.nextTick(function() {
                 this.put(item, priority, callback);
@@ -31,13 +74,37 @@ function queuePublish(item, priority, callback) {
     }.bind(this));
 }
 
+/**
+ * Add a new item to the beginning of the queue.
+ *
+ * Same as calling publish() with priority=true.
+ *
+ * Arguments:
+ *     item     -- The content to add to the queue.
+ *     callback -- Executed when the items is sucessfully published.
+ *
+ * Callback Arguments:
+ *     item -- The content of the published item.
+ *     id   -- The ID of the of published item.
+ */ 
 function queuePublishFront(item, callback) {
     this.put(item, true, callback);
 }
 
-//callback(item, id, timedout);
-//callback is not optional
-function queueGet(timeout, callback, timeout_callback) {
+/**
+ * Retrieve the next item from the queue.
+ *
+ * Arguments:
+ *     timeout  -- Time in seconds to wait for an item. If set
+ *                 to 0, the call will block indefinitely.
+ *     callback -- Executed when an item is received, or a time out occurs.
+ * 
+ * Callback Arguments:
+ *     item  -- The contents of the requested item.
+ *     id    -- The ID of the retrieved item.
+ *     error -- Flag indicating if an occurred, including time outs.
+ */
+function queueGet(timeout, callback) {
     if(!timeout) timeout = 0;
     this.bredis.brpop("feed.ids:" + this.name, timeout, function(err, result) {
         if(!err) {
@@ -56,6 +123,16 @@ function queueGet(timeout, callback, timeout_callback) {
     }.bind(this));
 }
 
+/**
+ * Return the set of IDs used by items in the queue.
+ *
+ * Arguments:
+ *     callback --
+ *
+ * Callback Arguments:
+ *     error -- A string or null.
+ *     reply -- The Redis reply object.
+ */
 function queueGetIds(callback) {
     return this.mredis.lrange("feed.ids:" + this.name, 0, -1, callback);
 }

@@ -120,7 +120,7 @@ List:
         else UNWATCH feed.ids:[feed]
 
     Get IDs:
-        LRANGE feed.ids:[feed] 0 -1
+        ZRANGE feed.ids:[feed] 0 -1
 
     Get Items:
         HGET feed.items:[feed] [id]
@@ -154,6 +154,9 @@ Queue:
             item = HGET feed.items:[feed] [id]
             HDEL feed.items:feed [id]
         EXEC
+
+    Get IDs:
+        LRANGE feed.ids:[feed] 0 -1
 
 Job:
 
