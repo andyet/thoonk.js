@@ -195,7 +195,7 @@ function sortedFeedPublishInsert(item, rel_id, callback, placement) {
  *     id   -- The generated ID of the item.
  */
 function sortedFeedPublishBefore(item, before_id, callback) {
-    this.publishInsert(this, item, before_id, callback, 'BEFORE');
+    this.publishInsert(item, before_id, callback, 'BEFORE');
 }
 
 /**
@@ -211,7 +211,7 @@ function sortedFeedPublishBefore(item, before_id, callback) {
  *     id   -- The generated ID of the item.
  */
 function sortedFeedPublishAfter(item, after_id, callback) {
-    this.publishInsert(this, item, after_id, callback, 'AFTER');
+    this.publishInsert(item, after_id, callback, 'AFTER');
 }
 
 /**
@@ -319,8 +319,8 @@ function sortedFeedMoveBefore(id, relative_id, callback) {
  *     reply -- The Redis reply object.
  *
  */
-function sortedFeedMoveAfter(id, relative_id) {
-    this.move(id, relative_id, 'AFTER');
+function sortedFeedMoveAfter(id, relative_id, callback) {
+    this.move(id, relative_id, 'AFTER', callback);
 }
 
 /**
@@ -335,8 +335,8 @@ function sortedFeedMoveAfter(id, relative_id) {
  *     reply -- The Redis reply object.
  *
  */
-function sortedFeedMoveBegin(id) {
-    this.move(id, null, 'BEGIN');
+function sortedFeedMoveBegin(id, callback) {
+    this.move(id, null, 'BEGIN', callback);
 }
 
 /**
@@ -350,8 +350,8 @@ function sortedFeedMoveBegin(id) {
  *     error -- A string or null.
  *     reply -- The Redis reply object.
  */
-function sortedFeedMoveEnd(id) {
-    this.move(id, null, 'END');
+function sortedFeedMoveEnd(id, callback) {
+    this.move(id, null, 'END', callback);
 }
 
 /**
