@@ -8,6 +8,11 @@ var uuid = require("node-uuid"),
     padlock = require("padlock"),
     EventEmitter = require("events").EventEmitter;
 
+var Feed = require("./feed.js").Feed,
+    Queue = require("./queue.js").Queue,
+    Job = require("./job.js").Job,
+    SortedFeed = require("./sorted_feed.js").SortedFeed;
+
 /**
  * Thoonk is a persistent (and fast!) system for push feeds, queues, and jobs
  * which leverages Redis. Thoonk.js is the node.js implementation of Thoonk, and
@@ -96,7 +101,7 @@ Thoonk.prototype.handle_message = function(channel, msg) {
         //retract: id
         var chans = channel.split(":");
         this.emit('retract:' + chans[1], msg);
-    } else if (channel.substring(0, 15) == 'feed.placement:') {
+    } else if (channel.substring(0, 14) == 'feed.position:') {
         var chans = channel.split(":");
         args = msg.split('\x00');
         this.emit('position:' + chans[1], args[0], args[1]);
@@ -231,13 +236,9 @@ Thoonk.prototype.quit = function() {
     this.bredis.quit();
 };
 
-var Feed = require("./feed.js").Feed,
-    Queue = require("./queue.js").Queue,
-    Job = require("./job.js").Job,
-    List = require("./sorted_feed.js").List;
 
 exports.Thoonk = Thoonk;
 exports.Feed = Feed;
-exports.List = List;
 exports.Queue = Queue;
 exports.Job = Job;
+exports.SortedFeed = SortedFeed;

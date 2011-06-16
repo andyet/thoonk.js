@@ -12,7 +12,6 @@ var tests = new TestObject([
     "retract:2",
     "ids:3,4,5,6",
 ], function(config) {
-    console.log(config.host, config.port, config.db);
     var thoonk = new Thoonk(config.host, config.port, config.db);
     tests.on("done", function() {
         thoonk.quit();

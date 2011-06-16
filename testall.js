@@ -1,5 +1,5 @@
 var LoadConfig = require("./tests/testcore").LoadConfig;
-var testnames = ['feeds', 'jobs'];
+var testnames = ['feeds', 'jobs', 'lists'];
 var idx = 0;
 
 function runtest(config) {
