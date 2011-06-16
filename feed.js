@@ -86,6 +86,7 @@ function feedReady() {
     this.lredis.subscribe("feed.publish:" + this.name);
     this.lredis.subscribe("feed.edit:" + this.name);
     this.lredis.subscribe("feed.retract:" + this.name);
+    this.lredis.subscribe("feed.position:" + this.name);
     this.subscribed = true;
 }
 
@@ -271,13 +272,13 @@ function feedSubscribe(publish_callback, edit_callback, retract_callback, placem
     this.thoonk.on('publish:' + this.name, publish_callback);
     this.thoonk.on('edit:' + this.name, edit_callback);
     this.thoonk.on('retract:' + this.name, retract_callback);
-    this.thoonk.on('placement:' + this.name, placement_callback);
+    this.thoonk.on('position:' + this.name, placement_callback);
     if(!this.subscribed) {
         this.lredis.once('idle', done_callback);
         this.lredis.subscribe("feed.publish:" + this.name);
         this.lredis.subscribe("feed.edit:" + this.name);
         this.lredis.subscribe("feed.retract:" + this.name);
-        this.lredis.subscribe("feed.placement:" + this.name);
+        this.lredis.subscribe("feed.position:" + this.name);
         this.subscribed = true;
     } else {
         done_callback();
