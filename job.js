@@ -126,7 +126,7 @@ function jobPublish(item, callback, high_priority) {
 function jobGet(timeout, callback) {
     if(!timeout) timeout = 0;
     this.bredis.brpop("feed.ids:" + this.name, timeout, function(err, result) {
-        if(!err) {
+        if(!err && result) {
             var id = result[1];
             this.mredis.multi()
                 .zadd("feed.claimed:" + this.name, Date.now(), result[1])
