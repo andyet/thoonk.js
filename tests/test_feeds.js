@@ -19,21 +19,21 @@ var tests = new TestObject([
     thoonk.mredis.flushdb();
     var testfeed = thoonk.feed("testfeed1", {'max_length': 4});
     testfeed.once("ready", function() {
-        testfeed.subscribe(
-            function(id, msg) {
+        testfeed.subscribe({
+            publish: function(id, msg) {
                 //console.log("publish:" + id + ": " + msg);
                 tests.should("publish:" + id + ": " + msg);
             },
-            function(id, msg) {
+            edit: function(id, msg) {
                 console.log("updated");
             },
-            function(id) {
+            retract: function(id) {
                 tests.should("retract:" + id);
             }, 
-            function() {
+            position: function() {
                 //position placeholder
             },
-            function() {
+            done: function() {
                 testfeed.publish("neehaw", "1");
                 testfeed.publish("neehaw2", "2");
                 testfeed.publish("neehaw3", "3");
@@ -49,7 +49,7 @@ var tests = new TestObject([
                     });
                 });
             }
-        );
+        });
     });
 });
 
