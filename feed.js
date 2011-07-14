@@ -174,7 +174,7 @@ function feedPublish(item, id, callback) {
  */
 function feedRetract(id, callback) {
     this.mredis.watch('feed.ids:' + this.name, function(err, reply) {
-        this.mredis.zrank('feed.ids:' + this.name, function(err, reply) {
+        this.mredis.zrank('feed.ids:' + this.name, id, function(err, reply) {
             if(reply) {
                 var rmulti = this.mredis.multi();
                 rmulti.zrem('feed.ids:' + this.name, id);
@@ -192,7 +192,7 @@ function feedRetract(id, callback) {
                 }.bind(this));
             } else {
                 this.thoonk.lock.unlock();
-                this.mredis.unwatch('feed.ids:' + this.name);
+                this.mredis.unwatch();
                 callback(id, "Id does not exist.");
             }
         }.bind(this));
