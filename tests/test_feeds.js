@@ -11,6 +11,7 @@ var tests = new TestObject([
     "retract:1",
     "retract:2",
     "ids:3,4,5,6",
+    "retract:6",
 ], function(config) {
     var thoonk = new Thoonk(config.host, config.port, config.db);
     tests.on("done", function() {
@@ -46,6 +47,8 @@ var tests = new TestObject([
                     testfeed.getAll(function(err, all) {
                         var other = {'3': "neehaw3", '4': "neehaw4", '5': "neehaw5", '6': "neehaw6"};
                         tests.compare(all, other);
+                        testfeed.retract("6", function(id, err) {
+                        });
                     });
                 });
             }
