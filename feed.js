@@ -175,7 +175,7 @@ function feedPublish(item, id, callback) {
 function feedRetract(id, callback) {
     this.mredis.watch('feed.ids:' + this.name, function(err, reply) {
         this.mredis.zrank('feed.ids:' + this.name, id, function(err, reply) {
-            if(reply) {
+            if(reply >= 0) {
                 var rmulti = this.mredis.multi();
                 rmulti.zrem('feed.ids:' + this.name, id);
                 rmulti.hdel('feed.items:' + this.name, id); 
