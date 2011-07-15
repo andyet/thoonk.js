@@ -87,7 +87,7 @@ Thoonk.prototype.handle_message = function(channel, msg) {
         var chans = channel.split(":");
 
         //publish: id, payload
-        this.emit('publish:' + chans[1], args[0], args[1]);
+        this.emit('publish:' + chans[1], chans[1], args[0], args[1]);
     } else if (channel.substring(0, 10) == 'feed.edit:') {
         //id, event
         args = msg.split('\x00');
@@ -96,15 +96,15 @@ Thoonk.prototype.handle_message = function(channel, msg) {
         var chans = channel.split(":");
 
         //publish: id, payload
-        this.emit('edit:' + chans[1], args[0], args[1]);
+        this.emit('edit:' + chans[1], chans[1], args[0], args[1]);
     } else if (channel.substring(0, 13) == 'feed.retract:') {
         //retract: id
         var chans = channel.split(":");
-        this.emit('retract:' + chans[1], msg);
+        this.emit('retract:' + chans[1], chans[1], msg);
     } else if (channel.substring(0, 14) == 'feed.position:') {
         var chans = channel.split(":");
         args = msg.split('\x00');
-        this.emit('position:' + chans[1], args[0], args[1]);
+        this.emit('position:' + chans[1], chans[1], args[0], args[1]);
     }
 };
 
