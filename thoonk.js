@@ -242,3 +242,13 @@ exports.Feed = Feed;
 exports.Queue = Queue;
 exports.Job = Job;
 exports.SortedFeed = SortedFeed;
+
+/**
+ * Shortcut function to make creating a Thoonk instance
+ * easier, as so:
+ *
+ *     var pubsub = require("thoonk").createClient(host, port, db);
+ */
+exports.createClient = function(host, port, db) {
+    return new Thoonk(host, port, db);
+}

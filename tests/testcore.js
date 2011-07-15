@@ -1,5 +1,8 @@
 var EventEmitter = require("events").EventEmitter;
 var fs = require('fs');
+var checkmark = '\033[1;32m.\033[0m';
+var failmark = '\033[1;31mx\033[0m';
+var failcolor = '\033[1;31m';
 
 function LoadConfig(callback) {
     fs.readFile('testconfig.json', 'utf-8', function(err, data) {
@@ -39,10 +42,10 @@ function TestObject(should_events, start_function) {
     this.test = function(success, msg) {
         this.extra_tests++;
         if(success) {
-            process.stdout.write(".");
+            process.stdout.write(checkmark);
             process.stdout.flush();
         } else {
-            process.stdout.write("x");
+            process.stdout.write(failmark);
             process.stdout.flush();
             this.manual_errors.push(msg);
         }
@@ -65,12 +68,12 @@ function TestObject(should_events, start_function) {
             }
         }
         if(pass) {
-            process.stdout.write(".");
+            process.stdout.write(checkmark);
             process.stdout.flush();
             this.extra_tests += 1;
         } else {
             this.manual_errors.push(JSON.stringify(item1) + " != " + JSON.stringify(item2));
-            process.stdout.write("x");
+            process.stdout.write(failmark);
             process.stdout.flush();
         }
     }
@@ -78,11 +81,11 @@ function TestObject(should_events, start_function) {
     this.should = function(eevent) {
         if(this.check_events.indexOf(eevent) == -1) {
             this.error_events.push(eevent); 
-            process.stdout.write("x");
+            process.stdout.write(failmark);
             process.stdout.flush();
         } else {
             this.good_events.push(eevent);
-            process.stdout.write(".");
+            process.stdout.write(checkmark);
             process.stdout.flush();
         }
     }

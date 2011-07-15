@@ -11,6 +11,7 @@ var tests = new TestObject([
     "retract:1",
     "retract:2",
     "ids:3,4,5,6",
+    "retract:6",
 ], function(config) {
     var thoonk = new Thoonk(config.host, config.port, config.db);
     tests.on("done", function() {
@@ -19,21 +20,21 @@ var tests = new TestObject([
     thoonk.mredis.flushdb();
     var testfeed = thoonk.feed("testfeed1", {'max_length': 4});
     testfeed.once("ready", function() {
-        testfeed.subscribe(
-            function(id, msg) {
+        testfeed.subscribe({
+            publish: function(id, msg) {
                 //console.log("publish:" + id + ": " + msg);
                 tests.should("publish:" + id + ": " + msg);
             },
-            function(id, msg) {
+            edit: function(id, msg) {
                 console.log("updated");
             },
-            function(id) {
+            retract: function(id) {
                 tests.should("retract:" + id);
             }, 
-            function() {
+            position: function() {
                 //position placeholder
             },
-            function() {
+            done: function() {
                 testfeed.publish("neehaw", "1");
                 testfeed.publish("neehaw2", "2");
                 testfeed.publish("neehaw3", "3");
@@ -46,10 +47,12 @@ var tests = new TestObject([
                     testfeed.getAll(function(err, all) {
                         var other = {'3': "neehaw3", '4': "neehaw4", '5': "neehaw5", '6': "neehaw6"};
                         tests.compare(all, other);
+                        testfeed.retract("6", function(id, err) {
+                        });
                     });
                 });
             }
-        );
+        });
     });
 });
 

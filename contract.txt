@@ -188,7 +188,7 @@ Job:
             LPUSH feed.ids:[feed] [id]
             INCR feed.publishes:[feed]
             HSET feed.items:[feed] [id] [item]
-            ZADD feed.published:[feed] [utc epoch] [id]
+            ZADD feed.published:[feed] [utc epoch milliseconds] [id]
         EXEC
 
     High Priority Put:
@@ -196,14 +196,14 @@ Job:
         MULTI
             RPUSH feed.ids:[feed] [id]
             HSET feed.items:[feed] [id] [item]
-            ZADD feed.published:[feed] [utc epoch] [id]
+            ZADD feed.published:[feed] [utc epoch milliseconds] [id]
         EXEC
 
     Get:
         id = BRPOP feed.ids:[feed] [timeout]
         //if error/timeout, abort
         MULTI
-            ZADD feed.claimed:[feed] [utc epoch] [id]
+            ZADD feed.claimed:[feed] [utc epoch milliseconds] [id]
             item = HGET feed:items[feed] [id]
         EXEC
         //if the id fails to get from feed.ids to feed.claimed, the maintenance will notice eventually
@@ -252,7 +252,7 @@ Job:
             SREM feed.stalled:[feed] [id]
             //if error, abort
             LPUSH feed.ids:[feed] [id]
-            ZADD feed.published:[feed] [utc epoch] [id]
+            ZADD feed.published:[feed] [utc epoch milliseconds] [id]
         EXEC // if nil retry
 
     Retract:
