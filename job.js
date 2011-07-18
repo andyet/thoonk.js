@@ -43,7 +43,7 @@ var Feed = require("./feed.js").Feed,
  *     feed.claimed:[feed]   -- A hash table of claimed jobs.
  *     feed.stalled:[feed]   -- A hash table of stalled jobs.
  *     feeed.funning:[feed]  -- A hash table of running jobs.
- *     feed.finished:[feed]\x00[id] -- Temporary queue for receiving job
+ *     feed.jobfinished:[feed]\x00[id] -- Temporary queue for receiving job
  *                                     result data.
  * 
  * Thoonk Standard API:
@@ -171,11 +171,11 @@ function jobFinish(id, callback, setresult, timeout) {
             multi.zrem("feed.claimed:" + this.name, id);
             multi.hdel("feed.cancelled:" + this.name, id);
             if(setresult !== undefined) {
-                multi.lpush("feed.finished:" + this.name + "\x00" + id, setresult);
+                multi.lpush("feed.jobfinished:" + this.name + "\x00" + id, setresult);
                 if(timeout === undefined) {
                     timeout = 0;
                 }
-                multi.expire("feed.finished:" + this.name + "\x00" + id, timeout);
+                multi.expire("feed.jobfinished:" + this.name + "\x00" + id, timeout);
             }
             multi.hdel("feed.items:" + this.name, id);
             multi.exec(function(err, reply) {
@@ -210,7 +210,7 @@ function jobFinish(id, callback, setresult, timeout) {
  *     timedout -- Flag indicating that the request had timed out.
  */
 function jobGetResult(id, timeout, callback) {
-    this.mredis.blpop("feed.finished:" + this.name + "\x00" + id, timeout, function(err, result) {
+    this.mredis.blpop("feed.jobfinished:" + this.name + "\x00" + id, timeout, function(err, result) {
         if(err) {
             callback(id, result, true);
         } else {
