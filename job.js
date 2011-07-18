@@ -171,11 +171,11 @@ function jobFinish(id, callback, setresult, timeout) {
             multi.zrem("feed.claimed:" + this.name, id);
             multi.hdel("feed.cancelled:" + this.name, id);
             if(setresult !== undefined) {
-                multi.lpush("feed.jobfinished:" + this.name + "\x00" + id, setresult);
+                multi.lpush("feed.finished:" + this.name + "\x00" + id, setresult);
                 if(timeout === undefined) {
                     timeout = 0;
                 }
-                multi.expire("feed.jobfinished:" + this.name + "\x00" + id, timeout);
+                multi.expire("feed.finished:" + this.name + "\x00" + id, timeout);
             }
             multi.hdel("feed.items:" + this.name, id);
             multi.exec(function(err, reply) {
@@ -210,7 +210,7 @@ function jobFinish(id, callback, setresult, timeout) {
  *     timedout -- Flag indicating that the request had timed out.
  */
 function jobGetResult(id, timeout, callback) {
-    this.mredis.blpop("feed.jobfinished:" + this.name + "\x00" + id, timeout, function(err, result) {
+    this.mredis.blpop("feed.finished:" + this.name + "\x00" + id, timeout, function(err, result) {
         if(err) {
             callback(id, result, true);
         } else {
