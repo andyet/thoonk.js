@@ -293,6 +293,41 @@ function feedSubscribe(callbacks) {
     }
 }
 
+function feedDelete (callback) {
+    var self = this;
+    this.mredis.watch('feeds');
+    this.mredis.sismember('feeds', this.name, function (error, reply) {
+        if(reply) {
+            var multi = this.mredis.multi();
+            multi.srem('feeds', this.name);
+            multi.del('feed.ids:' + this.name);
+            multi.del('feed.items:' + this.name);
+            multi.del('feed.publishes:' + this.name);
+            multi.del('feed.retract:' + this.name);
+            multi.del('feed.config:' + this.name);
+            multi.del('feed.edit:' + this.name);
+            multi.publish('delfeed', this.name + '\x00' + this.thoonk.instance);
+            multi.exec(function(err, reply) {
+                this.thoonk.lock.unlock();
+                if(!reply) {
+                    process.nextTick(function() {
+                        this.del(callback);
+                    }.bind(this));
+                } else {
+                    if(callback) {
+                        callback('Success', this.name);
+                    }
+                }
+            }.bind(this));
+        } else {
+            this.mredis.unwatch(function(err, reply) {
+                this.thoonk.lock.unlock();
+                if(callback) { callback('DoesNotExist'); }
+            }.bind(this));
+        }
+    }.bind(this));
+}
+
 //extend Feed with EventEmitter
 Feed.super_ = EventEmitter;
 Feed.prototype = Object.create(EventEmitter.prototype, {
@@ -309,5 +344,6 @@ Feed.prototype.getItem = feedGetItem;
 Feed.prototype.getAll = feedGetAll;
 Feed.prototype.subscribe = feedSubscribe;
 Feed.prototype.ready = feedReady;
+Feed.prototype.del = feedDelete;
 
 exports.Feed = Feed;
