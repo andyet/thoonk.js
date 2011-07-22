@@ -66,12 +66,14 @@ Thoonk.prototype.handle_message = function(channel, msg) {
             //this.feeds[args[0]] = null;
             this.update_config(args[0]);
         }
+        this.emit('create', args[0]);
     } else if (channel == "delfeed") {
         //feed instance
         args = msg.split('\x00');
         if(args[1] != this.instance) {
             delete this.feeds[args[0]];
         }
+        this.emit('delete', args[0]);
     } else if (channel == "conffeed") {
         //feed instance
         args = msg.split('\x00');
@@ -234,6 +236,19 @@ Thoonk.prototype.quit = function() {
     this.mredis.quit();
     this.lredis.quit();
     this.bredis.quit();
+};
+
+/**
+ * Return the names of all existing feeds.
+ */
+Thoonk.prototype.getFeedNames = function(callback, error_callback) {
+    this.mredis.smembers("feeds", function(error, reply) {
+        if(reply) {
+            callback(reply);
+        } else {
+            callback([]);
+        }
+    });
 };
 
 
