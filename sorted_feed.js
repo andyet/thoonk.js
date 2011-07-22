@@ -110,7 +110,7 @@ function sortedFeedEdit(id, item, callback) {
             }
             this.mredis.multi()
                 .hset('feed.items:' + this.name, id, item)
-                .inc('feed.publishes:' + this.name)
+                .incr('feed.publishes:' + this.name)
                 .publish('feed.publish:' + this.name, id + '\x00' + item)
             .exec(function(err, reply) {
                 this.thoonk.lock.unlock();
@@ -164,7 +164,7 @@ function sortedFeedPublishInsert(item, rel_id, callback, placement) {
                 this.mredis.multi()
                     .linsert('feed.ids:' + this.name, placement, rel_id, id)
                     .hset('feed.items:' + this.name, id, item)
-                    .inc('feed.publishes:' + this.name)
+                    .incr('feed.publishes:' + this.name)
                     .publish('feed.publish:' + this.name, id + '\x00' + item)
                     .publish('feed.position:' + this.name, id + '\x00' + placement)
                 .exec(function(err, reply) {
