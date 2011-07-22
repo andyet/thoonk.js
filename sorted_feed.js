@@ -380,6 +380,7 @@ function sortedFeedRetract(id, callback) {
                 .hdel('feed.items:' + this.name, id)
                 .publish('feed.retract:' + this.name, id)
             .exec(function(err, reply) {
+                this.thoonk.lock.unlock();
                 if(reply == null) {
                     process.nextTick(function() {
                         this.retract(id, callback);
