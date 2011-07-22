@@ -146,9 +146,9 @@ function sortedFeedEdit(id, item, callback) {
  */
 function sortedFeedPublishInsert(item, rel_id, callback, placement) {
     if(placement == 'BEFORE') {
-        placement = ':' + rel_id;
+        posUpdate = ':' + rel_id;
     } else {
-        placement = rel_id + ':';
+        posUpdate = rel_id + ':';
     }
     this.mredis.watch('feed.items:' + this.name, function(err, reply) {
         this.mredis.hexists('feed.items:' + this.name, rel_id, function(err, reply) {
@@ -166,7 +166,7 @@ function sortedFeedPublishInsert(item, rel_id, callback, placement) {
                     .hset('feed.items:' + this.name, id, item)
                     .incr('feed.publishes:' + this.name)
                     .publish('feed.publish:' + this.name, id + '\x00' + item)
-                    .publish('feed.position:' + this.name, id + '\x00' + placement)
+                    .publish('feed.position:' + this.name, id + '\x00' + posUpdate)
                 .exec(function(err, reply) {
                     this.thoonk.lock.unlock();
                     if(!reply) {
