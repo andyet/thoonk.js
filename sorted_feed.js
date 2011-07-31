@@ -235,6 +235,13 @@ function sortedFeedPublishAfter(item, after_id, callback) {
  */
 function sortedFeedMove(id, relative_id, placement, callback) {
     var relative;
+    if(id === relative_id) {
+        this.thoonk.lock.unlock();
+        if(callback) {
+            callback('NoChange', id, placement);
+        }
+        return;
+    }
     if(placement == 'BEFORE') {
         relative = ':' + relative_id;
     } else if (placement == 'AFTER') {
