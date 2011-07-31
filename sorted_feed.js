@@ -110,7 +110,7 @@ function sortedFeedEdit(id, item, callback) {
             }
             this.mredis.multi()
                 .hset('feed.items:' + this.name, id, item)
-                .inc('feed.publishes:' + this.name)
+                .incr('feed.publishes:' + this.name)
                 .publish('feed.publish:' + this.name, id + '\x00' + item)
             .exec(function(err, reply) {
                 this.thoonk.lock.unlock();
@@ -146,9 +146,9 @@ function sortedFeedEdit(id, item, callback) {
  */
 function sortedFeedPublishInsert(item, rel_id, callback, placement) {
     if(placement == 'BEFORE') {
-        placement = ':' + rel_id;
+        posUpdate = ':' + rel_id;
     } else {
-        placement = rel_id + ':';
+        posUpdate = rel_id + ':';
     }
     this.mredis.watch('feed.items:' + this.name, function(err, reply) {
         this.mredis.hexists('feed.items:' + this.name, rel_id, function(err, reply) {
@@ -164,9 +164,9 @@ function sortedFeedPublishInsert(item, rel_id, callback, placement) {
                 this.mredis.multi()
                     .linsert('feed.ids:' + this.name, placement, rel_id, id)
                     .hset('feed.items:' + this.name, id, item)
-                    .inc('feed.publishes:' + this.name)
+                    .incr('feed.publishes:' + this.name)
                     .publish('feed.publish:' + this.name, id + '\x00' + item)
-                    .publish('feed.position:' + this.name, id + '\x00' + placement)
+                    .publish('feed.position:' + this.name, id + '\x00' + posUpdate)
                 .exec(function(err, reply) {
                     this.thoonk.lock.unlock();
                     if(!reply) {
@@ -235,6 +235,13 @@ function sortedFeedPublishAfter(item, after_id, callback) {
  */
 function sortedFeedMove(id, relative_id, placement, callback) {
     var relative;
+    if(id === relative_id) {
+        this.thoonk.lock.unlock();
+        if(callback) {
+            callback('NoChange', id, placement);
+        }
+        return;
+    }
     if(placement == 'BEFORE') {
         relative = ':' + relative_id;
     } else if (placement == 'AFTER') {
@@ -380,6 +387,7 @@ function sortedFeedRetract(id, callback) {
                 .hdel('feed.items:' + this.name, id)
                 .publish('feed.retract:' + this.name, id)
             .exec(function(err, reply) {
+                this.thoonk.lock.unlock();
                 if(reply == null) {
                     process.nextTick(function() {
                         this.retract(id, callback);

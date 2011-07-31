@@ -102,16 +102,16 @@ The same is true for queues, jobs, and sorted feeds:
 ## Subscribing to a Feed ##
 
     thoonk.subscribe({
-        publish: function(id, item) {
+        publish: function(feed, id, item) {
             //publish event
         },
-        edit: function(id, item) {
+        edit: function(feed, id, item) {
             //edit event
         },
-        retract: function(id) {
+        retract: function(feed, id) {
             //retract event
         },
-        position: function(id, position) {
+        position: function(feed, id, position) {
             //position event for sorted feed
             //position is begin:, :end, :X, X: where X is the relative id
         },

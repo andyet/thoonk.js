@@ -26,17 +26,17 @@ var tests = new TestObject([
     var testfeed = thoonk.sortedFeed("testfeed1", {'max_length': 4});
     testfeed.once("ready", function() {
         testfeed.subscribe({
-            publish: function(id, msg) {
+            publish: function(feed, id, msg) {
                 //console.log("publish:" + id + ": " + msg);
                 tests.should("publish:" + id + ": " + msg);
             },
-            edit: function(id, msg) {
+            edit: function(feed, id, msg) {
                 console.log("updated");
             },
-            retract: function(id) {
+            retract: function(feed, id) {
                 tests.should("retract:" + id);
             }, 
-            position: function(id, position) {
+            position: function(feed, id, position) {
                 tests.should("position:" + id + " " + position);
             },
             done: function() {
