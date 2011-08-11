@@ -6,7 +6,7 @@
     "homepage": "thoonk.com",
     "author": {"name": "Nathan Fritz", "email": "nathan@andyet.net", "url": "http://andyet.net/team/nathan"},
     "contributors": [],
-    "files": ["feed.js", "job.js", "queue.js", "sorted_feed.js", "testall.js", "thoonk.js", "tests", "examples", "LISCENSE", "README.md", "contract.txt", "testconfig.json"],
+    "files": ["feed.js", "job.js", "queue.js", "sorted_feed.js", "testall.js", "thoonk.js", "tests", "examples", "LICENSE", "README.md", "contract.txt", "testconfig.json"],
     "main": "./thoonk.js",
     "repository": {"type": "git", "url": "http://github.com/fritzy/thoonk.js.git"}, 
     "dependencies": {"node-uuid": ">=1.1.0", "redis": ">=0.5.5", "padlock": ">=1.0.0"}
