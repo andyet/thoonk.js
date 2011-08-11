@@ -70,6 +70,10 @@ configured. Then run:
     var Thoonk = require("thoonk").Thoonk;
     var thoonk = new Thoonk(host, port, db)
 
+Or, you can use:
+
+    var thoonk = require("thoonk").createClient(host, port, db);
+
 ## Creating a Feed ##
 
     feed = thoonk.feed(feed_name, {"max_length": 50})
