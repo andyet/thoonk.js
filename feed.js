@@ -161,6 +161,12 @@ function feedPublish(item, id, callback) {
     }
 }
 
+function feedHasId(id, callback) {
+    this.mredis.hexists('feed.items:' + this.name, id, function(err, reply) {
+        callback(reply);
+    });
+}
+
 /**
  * Remove an item from the feed.
  * 
@@ -345,5 +351,6 @@ Feed.prototype.getAll = feedGetAll;
 Feed.prototype.subscribe = feedSubscribe;
 Feed.prototype.ready = feedReady;
 Feed.prototype.del = feedDelete;
+Feed.prototype.hasId = feedHasId;
 
 exports.Feed = Feed;
