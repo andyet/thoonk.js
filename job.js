@@ -89,13 +89,16 @@ function Job(thoonk, name, config) {
  *     high_priority -- Optional bool indicating that the job
  *                      should be inserted to the beginning of the
  *                      queue. Defaults to false.
+ *     id            -- Optionally set the id of the job.
  * 
  * Callback Arguments:
  *     item  -- The contents of the job.
  *     id    -- The ID of the submitted job.
  */
-function jobPublish(item, callback, high_priority) {
-    var id = uuid();
+function jobPublish(item, callback, high_priority, id) {
+    if(id === undefined) {
+        var id = uuid();
+    }
     var multi = this.mredis.multi();
     if(high_priority === true) {
         multi.rpush("feed.ids:" + this.name, id);
