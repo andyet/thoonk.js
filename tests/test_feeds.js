@@ -12,6 +12,8 @@ var tests = new TestObject([
     "retract:2",
     "ids:3,4,5,6",
     "retract:6",
+    "hasId4:true",
+    "hasId1:false",
 ], function(config) {
     var thoonk = new Thoonk(config.host, config.port, config.db);
     tests.on("done", function() {
@@ -43,6 +45,12 @@ var tests = new TestObject([
                 testfeed.publish("neehaw6", "6", function() {
                     testfeed.getIds(function(err, ids) {
                         tests.should("ids:" + ids.join(','));
+                    });
+                    testfeed.hasId('4', function(result) {
+                        tests.should('hasId4:' + result);
+                    });
+                    testfeed.hasId('1', function(result) {
+                        tests.should('hasId1:' + result);
                     });
                     testfeed.getAll(function(err, all) {
                         var other = {'3': "neehaw3", '4': "neehaw4", '5': "neehaw5", '6': "neehaw6"};

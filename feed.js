@@ -161,9 +161,15 @@ function feedPublish(item, id, callback) {
     }
 }
 
+/**
+ * Check feed for an id.
+ * Arguements:
+ *      id          -- The ID value to check for.
+ *      callback    -- Executed when answer is retrieved.
+ */
 function feedHasId(id, callback) {
     this.mredis.hexists('feed.items:' + this.name, id, function(err, reply) {
-        callback(reply);
+        callback(Boolean(reply));
     });
 }
 
