@@ -345,7 +345,7 @@ function jobRetry(id, callback) {
  *     num   -- The number of times the job has been cancelled.
  *     error -- A string description of the error.
  */
-function getNumOfFailures(id, callback) {
+function jobGetNumOfFailures(id, callback) {
     this.mredis.hget("feed.cancelled:" + this.name, id, function(err, result) {
         callback(result, err);
     });
@@ -407,6 +407,6 @@ Job.prototype.cancel = jobCancel;
 Job.prototype.stall = jobStall;
 Job.prototype.retry = jobRetry;
 Job.prototype.retract = jobRetract;
-Job.prototype.getNumOfFailures = getNumOfFailures;
+Job.prototype.getNumOfFailures = jobGetNumOfFailures;
 
 exports.Job = Job;
