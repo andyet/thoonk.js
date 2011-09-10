@@ -335,6 +335,23 @@ function jobRetry(id, callback) {
 }
 
 /**
+ * Get the number of times the job has been cancelled.
+ *
+ * Arguments:
+ *     id       -- The ID of the job to check.
+ *     callback -- Called with result.
+ *
+ * Callback Arguments:
+ *     num   -- The number of times the job has been cancelled.
+ *     error -- A string description of the error.
+ */
+function getNumOfFailures(id, callback) {
+    this.mredis.hget("feed.cancelled:" + this.name, id, function(err, result) {
+        callback(result, err);
+    });
+}
+
+/**
  * Delete a job from anywhere in the process.
  *
  * Arguments:
@@ -390,5 +407,6 @@ Job.prototype.cancel = jobCancel;
 Job.prototype.stall = jobStall;
 Job.prototype.retry = jobRetry;
 Job.prototype.retract = jobRetract;
+Job.prototype.getNumOfFailures = getNumOfFailures;
 
 exports.Job = Job;

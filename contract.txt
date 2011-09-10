@@ -267,6 +267,9 @@ Job:
             LREM feed.ids:[feed] 1 [id]
         EXEC // if fail, retry
 
+    getNumOfFailures:
+        HGET feed.cancelled:[feed] [id]
+
     Maintenance: //maintain job queue -- only ran by one process per jobqueue on occassion -- still a bit hand-wavey
         MULTI
             keys = HKEYS feed.items:[feed]
