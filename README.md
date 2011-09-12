@@ -49,8 +49,6 @@ of outages, and keeping long running tasks away from synchronous interfaces.
 
 # Installation #
 
-In theory, if I publish the package correctly, then this should work.
-
     npm install thoonk
 
 
