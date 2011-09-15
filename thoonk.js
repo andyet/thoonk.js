@@ -39,6 +39,9 @@ function Thoonk(host, port, db) {
 
     //map message events to this.handle_message using event_handler to apply instance scope
     this.lredis.on("message", this.handle_message.bind(this));
+    this.lredis.on("pmessage", this.handle_pmessage.bind(this));
+    this.lredis.on("subscribe", this.handle_subscribe.bind(this));
+    this.lredis.on("psubscribe", this.handle_psubscribe.bind(this));
 
     this.feeds = {};
 
@@ -109,6 +112,95 @@ Thoonk.prototype.handle_message = function(channel, msg) {
         this.emit('position:' + chans[1], chans[1], args[0], args[1]);
     }
 };
+
+//map the pattern event to the subscription callback
+Thoonk.prototype.handle_pmessage = function(pattern, channel, msg) {
+    var args;
+    if (channel.substring(0, 13) == 'feed.publish:') {
+        //id, event
+        args = msg.split('\x00');
+
+        //chans[1] is the feed name
+        var chans = channel.split(":");
+
+        //publish: id, payload
+        this.emit('ns.publish:' + pattern, chans[1], args[0], args[1]);
+    } else if (channel.substring(0, 10) == 'feed.edit:') {
+        //id, event
+        args = msg.split('\x00');
+
+        //chans[1] is the feed name
+        var chans = channel.split(":");
+
+        //publish: id, payload
+        this.emit('ns.edit:' + pattern, chans[1], args[0], args[1]);
+    } else if (channel.substring(0, 13) == 'feed.retract:') {
+        //retract: id
+        var chans = channel.split(":");
+        this.emit('ns.retract:' + pattern, chans[1], msg);
+    } else if (channel.substring(0, 14) == 'feed.position:') {
+        var chans = channel.split(":");
+        args = msg.split('\x00');
+        this.emit('ns.position:' + pattern, chans[1], args[0], args[1]);
+    }
+};
+
+Thoonk.prototype.handle_subscribe = function(channel, count) {
+    this.emit('subscribe:' + channel, count);
+};
+
+Thoonk.prototype.handle_psubscribe = function(pattern, count) {
+    this.emit('psubscribe:' + pattern, count);
+};
+
+/**
+ * Subscribe to receive pattern events.
+ *
+ * Events:
+ *     publishes
+ *     edits
+ *     retractions
+ *     position updates
+ *
+ * Object Property Arguments:
+ *     publish  -- Executed on an item publish event.
+ *     edit     -- Executed on an item edited event.
+ *     retract  -- Executed on an item removal event.
+ *     position -- Placeholder for sorted feed item placement.
+ *     done     -- Executed when subscription is completed.
+ *
+ * Publish and Edit Callback Arguments:
+ *     name -- The name of the feed that changed.
+ *     id   -- The ID of the published or edited item.
+ *     item -- The content of the published or edited item.
+ *     
+ * Retract Callback Arguments:
+ *     name -- The name of the feed that changed.
+ *     id   -- The ID of the retracted item.
+ *
+ * Done Callback Arguments: None
+ */
+Thoonk.prototype.namespaceSubscribe = function(patthern, callbacks) {
+    if(callbacks['publish']) {
+        this.thoonk.on('ns.publish:' + pattern, callbacks['publish']);
+    }
+    if(callbacks['edit']) {
+        this.thoonk.on('ns.edit:' + pattern, callbacks['edit']);
+    }
+    if(callbacks['retract']) {
+        this.thoonk.on('ns.retract:' + pattern, callbacks['retract']);
+    }
+    if(callbacks['position']) {
+        this.thoonk.on('ns.position:' + pattern, callbacks['position']);
+    }
+    this.lredis.psubscribe("feed.publish:" + pattern);
+    this.lredis.psubscribe("feed.edit:" + pattern);
+    this.lredis.psubscribe("feed.retract:" + pattern);
+    this.lredis.psubscribe("feed.position:" + pattern);
+    if(callbacks.hasOwnProperty('done')) {
+        this.thoonk.once('psubscribe:' + pattern, callbacks.done);
+    }
+}
 
 /**
  * Create a new feed. A feed is a subject that you can publish items to
