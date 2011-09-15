@@ -105,7 +105,31 @@ The same is true for queues, jobs, and sorted feeds:
 
 ## Subscribing to a Feed ##
 
-    thoonk.subscribe({
+    feed.subscribe({
+        publish: function(feed, id, item) {
+            //publish event
+        },
+        edit: function(feed, id, item) {
+            //edit event
+        },
+        retract: function(feed, id) {
+            //retract event
+        },
+        position: function(feed, id, position) {
+            //position event for sorted feed
+            //position is begin:, :end, :X, X: where X is the relative id
+        },
+        done: function() {
+            //subscription ready
+        }
+    });
+
+## Subscribing to Pattern/Namespace  ##
+
+Just like subscribing to a feed, you can subscribe to a series of feeds using a pattern.
+The pattern uses asterisks (*) for matching.
+
+    thoonk.namespaceSubscribe('somepattern*', {
         publish: function(feed, id, item) {
             //publish event
         },
