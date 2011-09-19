@@ -8,10 +8,10 @@ var uuid = require("node-uuid"),
     padlock = require("padlock"),
     EventEmitter = require("events").EventEmitter;
 
-var Feed = require("./feed.js").Feed,
-    Queue = require("./queue.js").Queue,
-    Job = require("./job.js").Job,
-    SortedFeed = require("./sorted_feed.js").SortedFeed;
+var Feed = exports.Feed = require("./feed.js").Feed,
+    Queue = exports.Queue = require("./queue.js").Queue,
+    Job = exports.Job = require("./job.js").Job,
+    SortedFeed = exports.SortedFeed = require("./sorted_feed.js").SortedFeed;
 
 /**
  * Thoonk is a persistent (and fast!) system for push feeds, queues, and jobs
@@ -21,10 +21,10 @@ var Feed = require("./feed.js").Feed,
  * @param host
  * @param port
  */
-function Thoonk(host, port, db) {
-    if(!host) { host = "127.0.0.1"; }
-    if(!port) { port = 6379; }
-    if(!db) { db = 0; }
+var Thoonk = exports.Thoonk = function Thoonk(host, port, db) {
+    host || (host = "127.0.0.1");
+    port || (port = 6379);
+    db || (db = 0);
     EventEmitter.call(this);
     this.lredis = redis.createClient(port, host);
     this.lredis.select(db);
@@ -217,6 +217,7 @@ Thoonk.prototype.namespaceSubscribe = function(patthern, callbacks) {
  *               serializer, etc.
  */
 Thoonk.prototype.create = function(name, config) {
+    config || (config = {});
     this.mredis.sadd("feeds", name, function(err, result) {
         // if we added it, configure it
         if(result != 0) { 
@@ -343,12 +344,6 @@ Thoonk.prototype.getFeedNames = function(callback, error_callback) {
     });
 };
 
-
-exports.Thoonk = Thoonk;
-exports.Feed = Feed;
-exports.Queue = Queue;
-exports.Job = Job;
-exports.SortedFeed = SortedFeed;
 
 /**
  * Shortcut function to make creating a Thoonk instance
