@@ -217,6 +217,7 @@ Thoonk.prototype.namespaceSubscribe = function(patthern, callbacks) {
  *               serializer, etc.
  */
 Thoonk.prototype.create = function(name, config) {
+    config || (config = {});
     this.mredis.sadd("feeds", name, function(err, result) {
         // if we added it, configure it
         if(result != 0) { 
