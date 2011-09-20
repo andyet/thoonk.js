@@ -451,7 +451,7 @@ function sortedFeedGetItem(id, callback) {
  *
  * Callback Arguments:
  *     error -- A string or null.
- *     reply -- A list of [id, item] lists.
+ *     reply -- A list of {id, item} lists.
  */
 function sortedFeedGetAll(callback) {
     var multi = this.mredis.multi();
@@ -463,7 +463,7 @@ function sortedFeedGetAll(callback) {
         items = reply[1];
         var answers =[];
         for(var idx in ids) {
-            answers.push([ids[idx], items[ids[idx]]]);
+            answers.push({id: ids[idx], item: items[ids[idx]]});
         }
         if(err) {
             callback(err, null);
