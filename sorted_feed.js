@@ -451,7 +451,7 @@ function sortedFeedGetItem(id, callback) {
  *
  * Callback Arguments:
  *     error -- A string or null.
- *     reply -- The Redis reply object.
+ *     reply -- A list of [id, item] lists.
  */
 function sortedFeedGetAll(callback) {
     var multi = this.mredis.multi();
