@@ -355,6 +355,24 @@ Thoonk.prototype.job = function(name, config) {
     return new Job(this, name, config);
 };
 
+Thoonk.prototype.loadFeed = function(name, callback) {
+    this.mredis.hget('feed.config:' + name, 'type', function(err, reply) {
+        if(err) {
+            callback("not found");
+        } else {
+            if(reply == 'feed') {
+                callback(null, new this.feed(name));
+            } else if(reply == 'sorted_feed') {
+                callback(null, new this.sortedFeed(name));
+            } else if(reply == 'job') {
+                callback(null, new this.job(name));
+            } else {
+                callback("unknown type: " + reply);
+            }
+        }
+    }.bind(this));
+};
+
 /**
  * Disconnect from the server.
  */
