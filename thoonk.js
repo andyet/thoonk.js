@@ -42,8 +42,11 @@ var Thoonk = exports.Thoonk = function Thoonk(host, port, db) {
     this.lredis.on("pmessage", this.handle_pmessage.bind(this));
     this.lredis.on("subscribe", this.handle_subscribe.bind(this));
     this.lredis.on("psubscribe", this.handle_psubscribe.bind(this));
+    this.lredis.on("punsubscribe", this.handle_punsubscribe.bind(this));
 
     this.feeds = {};
+    
+    this.subscribepatterns = {};
 
     this.mredis.on("error", function(error) {
         console.log("Error " + error);
@@ -153,6 +156,10 @@ Thoonk.prototype.handle_psubscribe = function(pattern, count) {
     this.emit('psubscribe:' + pattern, count);
 };
 
+Thoonk.prototype.handle_punsubscribe = function(pattern, count) {
+    this.emit('punsubscribe:' + pattern, count);
+};
+
 /**
  * Subscribe to receive pattern events.
  *
@@ -180,7 +187,7 @@ Thoonk.prototype.handle_psubscribe = function(pattern, count) {
  *
  * Done Callback Arguments: None
  */
-Thoonk.prototype.namespaceSubscribe = function(patthern, callbacks) {
+Thoonk.prototype.namespaceSubscribe = function(pattern, callbacks) {
     if(callbacks['publish']) {
         this.thoonk.on('ns.publish:' + pattern, callbacks['publish']);
     }
@@ -193,14 +200,66 @@ Thoonk.prototype.namespaceSubscribe = function(patthern, callbacks) {
     if(callbacks['position']) {
         this.thoonk.on('ns.position:' + pattern, callbacks['position']);
     }
-    this.lredis.psubscribe("feed.publish:" + pattern);
-    this.lredis.psubscribe("feed.edit:" + pattern);
-    this.lredis.psubscribe("feed.retract:" + pattern);
-    this.lredis.psubscribe("feed.position:" + pattern);
+    if(!this.subscribepatterns.hasOwnPropery(pattern)) {
+        this.lredis.psubscribe("feed.publish:" + pattern);
+        this.lredis.psubscribe("feed.edit:" + pattern);
+        this.lredis.psubscribe("feed.retract:" + pattern);
+        this.lredis.psubscribe("feed.position:" + pattern);
+        this.subscribepatterns[pattern] = 0;
+    }
+    this.subscribepatterns[pattern]++;
     if(callbacks.hasOwnProperty('done')) {
-        this.thoonk.once('psubscribe:' + pattern, callbacks.done);
+        this.thoonk.once('psubscribe:feed.position:' + pattern, callbacks.done);
     }
 }
+
+/**
+ * Unsubscribe from pattern events.
+ *
+ * Object Property Arguments:
+ *     publish  -- Executed on an item publish event.
+ *     edit     -- Executed on an item edited event.
+ *     retract  -- Executed on an item removal event.
+ *     position -- Placeholder for sorted feed item placement.
+ *     done     -- Executed when subscription is completed.
+ *
+ * Done Callback Arguments: None
+ *
+ *  pattern
+ *  callbacks
+ *
+ */
+Thoonk.prototype.namespaceUnsubscribe = function(pattern, callbacks) {
+    if(this.subscribepatterns.hasOwnProperty(pattern)) {
+        this.subscribepatterns[pattern]--;
+        if(callbacks['publish']) {
+            this.thoonk.removeListener('ns.publish:' + pattern, callbacks['publish']);
+        }
+        if(callbacks['edit']) {
+            this.thoonk.removeListener('ns.edit:' + pattern, callbacks['edit']);
+        }
+        if(callbacks['retract']) {
+            this.thoonk.removeListener('ns.retract:' + pattern, callbacks['retract']);
+        }
+        if(callbacks['position']) {
+            this.thoonk.removeListener('ns.position:' + pattern, callbacks['position']);
+        }
+        if(this.subscribepatterns[pattern] == 0) {
+            delete this.subscribepatterns[pattern];
+            this.lredis.punsubscribe("feed.publish:" + pattern);
+            this.lredis.punsubscribe("feed.edit:" + pattern);
+            this.lredis.punsubscribe("feed.retract:" + pattern);
+            this.lredis.punsubscribe("feed.position:" + pattern);
+        }
+        if(callbacks.hasOwnProperty('done')) {
+            this.thoonk.once('punsubscribe:feed.position:' + pattern, callbacks.done);
+        }
+    } else {
+        if(callbacks.hasOwnProperty('done')) {
+            callbacks.done();
+        }
+    }
+};
 
 /**
  * Create a new feed. A feed is a subject that you can publish items to
