@@ -1,1 +1,1 @@
-{"enabled": false, "host": "localhost", "port": 6379, "db": 10 }
+{"enabled": true, "host": "localhost", "port": 6379, "db": 10 }

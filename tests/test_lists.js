@@ -50,7 +50,7 @@ var tests = new TestObject([
                         tests.should("ids:" + ids.join(','));
                     });
                     testfeed.getAll(function(err, all) {
-                        var other = {'1': 'neehaw', '2': 'neehaw2', '3': "neehaw3", '4': "neehaw4", '5': "neehaw5", '6': "neehaw6"};
+                        var other = [['1', 'neehaw'], ['2', 'neehaw2'], ['3', "neehaw3"], ['4', "neehaw4"], ['5', "neehaw5"], ['6', "neehaw6"]];
                         tests.compare(all, other);
                         testfeed.moveEnd("1", function(err_msg, id, placement) {
                             testfeed.getIds(function(err, ids) {

@@ -33,6 +33,7 @@ function SortedFeed(thoonk, name, config) {
     this.publishInsert = this.thoonk.lock.require(sortedFeedPublishInsert, this);
     this.move = this.thoonk.lock.require(sortedFeedMove, this);
     this.retract = this.thoonk.lock.require(sortedFeedRetract, this);
+    this.getAll = this.thoonk.lock.require(sortedFeedGetAll, this);
 }
 
 /**
@@ -453,8 +454,23 @@ function sortedFeedGetItem(id, callback) {
  *     reply -- The Redis reply object.
  */
 function sortedFeedGetAll(callback) {
-    this.mredis.hgetall('feed.items:' + this.name, function(err, reply) {
-        callback(err, reply);
+    var multi = this.mredis.multi();
+    multi.lrange('feed.ids:' + this.name, 0, -1);
+    multi.hgetall('feed.items:' + this.name);
+    multi.exec(function(err, reply) {
+        var ids, items;
+        ids = reply[0];
+        items = reply[1];
+        var answers =[];
+        for(var idx in ids) {
+            answers.push([ids[idx], items[ids[idx]]]);
+        }
+        if(err) {
+            callback(err, null);
+        } else {
+            callback(null, answers);
+        }
+        this.thoonk.lock.unlock();
     }.bind(this));
 }
 
@@ -480,5 +496,6 @@ SortedFeed.prototype.moveAfter = sortedFeedMoveAfter;
 SortedFeed.prototype.moveBefore = sortedFeedMoveBefore;
 SortedFeed.prototype.moveBegin = sortedFeedMoveBegin;
 SortedFeed.prototype.moveEnd = sortedFeedMoveEnd;
+SortedFeed.prototype.getAll = sortedFeedGetAll;
 
 exports.SortedFeed = SortedFeed;
