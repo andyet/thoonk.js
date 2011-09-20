@@ -45,6 +45,7 @@ function SortedFeed(thoonk, name, config) {
  *                 instead of the end.
  *
  * Callback Arguments:
+ *     error
  *     item -- The contents of the published item.
  *     id   -- The generated ID of the published item.
  */
@@ -66,7 +67,7 @@ function sortedFeedPublish(item, callback, prepend) {
         multi.publish('feed.position:' + this.name, id + '\x00' + relative);
         multi.exec(function(err, reply) {
             this.thoonk.lock.unlock();
-            if(callback) { callback(item, id); }
+            if(callback) { callback(null, item, id); }
         }.bind(this));
     }.bind(this));
 }
@@ -79,6 +80,7 @@ function sortedFeedPublish(item, callback, prepend) {
  *     callback -- Executed on successful publication.
  *
  * Callback Arguments:
+ *     error
  *     item -- The contents of the published item.
  *     id   -- The generated ID of the published item.
  */
@@ -95,16 +97,17 @@ function sortedFeedPrepend(item, callback) {
  *     callback -- Executed on successful modification.
  *
  * Callback Arguments:
+ *     error
  *     item -- The new contents of the item.
  *     id   -- The ID of the item.
  */
-function sortedFeedEdit(id, item, callback) {
+function sortedFeedEdit(item, id, callback) {
     this.mredis.watch('feed.items:' + this.name, function(err, reply) {
         this.mredis.hexists('feed.items:' + this.name, id, function(err, reply) {
             if(!reply) {
                 this.mredis.unwatch(function(err, reply) {
                     this.thoonk.lock.unlock();
-                    if(callback) { callback('DoesNotExist', id, item); }
+                    if(callback) { callback('DoesNotExist', item, id); }
                 }.bind(this));
                 return;
             }
@@ -116,10 +119,10 @@ function sortedFeedEdit(id, item, callback) {
                 this.thoonk.lock.unlock();
                 if(!reply) {
                     process.nextTick(function() {
-                        this.edit(id, item, callback);
+                        this.edit(item, id, callback);
                     }.bind(this));
                 } else {
-                    if(callback) { callback(item, id); }
+                    if(callback) { callback(null, item, id); }
                 }
             }.bind(this));
         }.bind(this));
@@ -141,6 +144,7 @@ function sortedFeedEdit(id, item, callback) {
  *                  to rel_id.
  *
  * Callback Arguments:
+ *     error 
  *     item -- The content of the published item.
  *     id   -- The generated ID of the item.
  */
@@ -155,7 +159,7 @@ function sortedFeedPublishInsert(item, rel_id, callback, placement) {
             if(!reply) {
                 this.mredis.unwatch(function(err, reply) {
                     this.thoonk.lock.unlock();
-                    if(callback) { callback('DoesNotExist', id, item); }
+                    if(callback) { callback('DoesNotExist', item, rel_id); }
                 }.bind(this));
                 return;
             }
@@ -174,7 +178,7 @@ function sortedFeedPublishInsert(item, rel_id, callback, placement) {
                             this.publishInsert(item, rel_id, callback, placement);
                         }.bind(this));
                     } else {
-                        if(callback) { callback(item, id); }
+                        if(callback) { callback(null, item, id); }
                     }
                 }.bind(this));
             }.bind(this));
@@ -191,6 +195,7 @@ function sortedFeedPublishInsert(item, rel_id, callback, placement) {
  *     callback  -- Executed on successful publish.
  *
  * Callback Arguments:
+ *     error
  *     item -- The content of the published item.
  *     id   -- The generated ID of the item.
  */
@@ -207,6 +212,7 @@ function sortedFeedPublishBefore(item, before_id, callback) {
  *     callback  -- Executed on successful publish.
  *
  * Callback Arguments:
+ *     error
  *     item -- The content of the published item.
  *     id   -- The generated ID of the item.
  */
@@ -258,7 +264,7 @@ function sortedFeedMove(id, relative_id, placement, callback) {
             if(!reply) {
                 this.mredis.unwatch(function(err, reply) {
                     this.thoonk.lock.unlock();
-                    if(callback) { callback('DoesNotExist', relative_id); }
+                    if(callback) { callback('DoesNotExist', relative_id, placement); }
                 }.bind(this));
                 return;
             }
@@ -307,7 +313,8 @@ function sortedFeedMove(id, relative_id, placement, callback) {
  *
  * Callback Arguments:
  *     error -- A string or null.
- *     reply -- The Redis reply object.
+ *     id
+ *     placement
  */
 function sortedFeedMoveBefore(id, relative_id, callback) {
     this.move(id, relative_id, 'BEFORE', callback);
@@ -339,7 +346,8 @@ function sortedFeedMoveAfter(id, relative_id, callback) {
  *
  * Callback Arguments:
  *     error -- A string or null.
- *     reply -- The Redis reply object.
+ *     id
+ *     placement
  *
  */
 function sortedFeedMoveBegin(id, callback) {
@@ -355,7 +363,8 @@ function sortedFeedMoveBegin(id, callback) {
  *
  * Callback Arguments:
  *     error -- A string or null.
- *     reply -- The Redis reply object.
+ *     id
+ *     placement
  */
 function sortedFeedMoveEnd(id, callback) {
     this.move(id, null, 'END', callback);
@@ -369,8 +378,8 @@ function sortedFeedMoveEnd(id, callback) {
  *     callback -- Executed on successful retraction.
  *
  * Callback Arguments:
+ *     error -- A string or null.
  *     id -- ID of the removed item. 
- *     err_msg -- A string or null.
  */
 function sortedFeedRetract(id, callback) {
     this.mredis.watch('feed.items:' + this.name, function(err, reply) {
@@ -378,7 +387,7 @@ function sortedFeedRetract(id, callback) {
             if(!reply) {
                 this.mredis.unwatch(function(err, reply) {
                     this.thoonk.lock.unlock();
-                    if(callback) { callback(id, 'Does not exist'); }
+                    if(callback) { callback('DoesNotExist', id); }
                 }.bind(this));
                 return;
             }
@@ -393,7 +402,7 @@ function sortedFeedRetract(id, callback) {
                         this.retract(id, callback);
                     }.bind(this));
                 } else {
-                    if(callback) { callback(id, null); }
+                    if(callback) { callback(null, id); }
                 }
             }.bind(this));
         }.bind(this));

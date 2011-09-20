@@ -46,10 +46,10 @@ var tests = new TestObject([
                     testfeed.getIds(function(err, ids) {
                         tests.should("ids:" + ids.join(','));
                     });
-                    testfeed.hasId('4', function(result) {
+                    testfeed.hasId('4', function(err, result) {
                         tests.should('hasId4:' + result);
                     });
-                    testfeed.hasId('1', function(result) {
+                    testfeed.hasId('1', function(err, result) {
                         tests.should('hasId1:' + result);
                     });
                     testfeed.getAll(function(err, all) {

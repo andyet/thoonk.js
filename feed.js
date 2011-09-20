@@ -73,6 +73,7 @@ function Feed(thoonk, name, config, type) {
     );
 
     this.publish = this.thoonk.lock.require(feedPublish, this);
+    this.edit = this.thoonk.lock.require(feedPublish, this);
     this.retract = this.thoonk.lock.require(feedRetract, this);
 }
 
@@ -106,6 +107,7 @@ function feedReady() {
  *     callback -- Executed upon sucessful publish.
  * 
  * Callback Arguments:
+ *     error
  *     item -- The conent of the published item.
  *     id   -- The ID assigned to the published item.
  */
@@ -140,7 +142,7 @@ function feedPublish(item, id, callback) {
                             } else {
                                 this.mredis.publish('feed.edit:' + this.name, id + "\x00" + item);
                             }
-                            if(callback !== undefined) { callback(item, id); }
+                            if(callback !== undefined) { callback(null, item, id); }
                         }
                     }.bind(this));
                 }.bind(this));
@@ -157,7 +159,7 @@ function feedPublish(item, id, callback) {
                 } else {
                     this.mredis.publish('feed.edit:' + this.name, id + "\x00" + item);
                 }
-                if(callback !== undefined) { callback(item, id); }
+                if(callback !== undefined) { callback(null, item, id); }
             }.bind(this));
         }
     }.bind(this));
@@ -172,7 +174,7 @@ function feedPublish(item, id, callback) {
  */
 function feedHasId(id, callback) {
     this.mredis.hexists('feed.items:' + this.name, id, function(err, reply) {
-        callback(Boolean(reply));
+        callback(err, Boolean(reply));
     });
 }
 
@@ -184,8 +186,8 @@ function feedHasId(id, callback) {
  *     callback -- Executed on successful retraction.
  *
  * Callback Arguments:
+ *     error -- A string or null.
  *     id -- ID of the removed item. 
- *     err_msg -- A string or null.
  */
 function feedRetract(id, callback) {
     this.mredis.watch('feed.ids:' + this.name, function(err, reply) {
@@ -202,14 +204,14 @@ function feedRetract(id, callback) {
                             this.retract(id, callback);
                         }.bind(this));
                     } else {
-                        if(callback) { callback(id); }
+                        if(callback) { callback(null, id); }
                     }
                 }.bind(this));
             } else {
                 this.mredis.unwatch(function(err, reply) {
                     this.thoonk.lock.unlock();
                 });
-                callback(id, "Id does not exist.");
+                callback("DoesNotExist", id);
             }
         }.bind(this));
     }.bind(this));
@@ -359,6 +361,7 @@ Feed.prototype = Object.create(EventEmitter.prototype, {
 });
 
 Feed.prototype.publish = feedPublish;
+Feed.prototype.edit = feedPublish;
 Feed.prototype.retract = feedRetract;
 Feed.prototype.getIds = feedGetIds;
 Feed.prototype.getItem = feedGetItem;
