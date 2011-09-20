@@ -44,8 +44,6 @@ var Thoonk = exports.Thoonk = function Thoonk(host, port, db) {
     this.lredis.on("psubscribe", this.handle_psubscribe.bind(this));
     this.lredis.on("punsubscribe", this.handle_punsubscribe.bind(this));
 
-    this.feeds = {};
-    
     this.subscribepatterns = {};
 
     this.mredis.on("error", function(error) {
@@ -68,25 +66,15 @@ Thoonk.prototype.handle_message = function(channel, msg) {
     if(channel == "newfeed") {
         //feed, instance
         args = msg.split('\x00');
-        if(args[1] != this.instance) {
-            //this.feeds[args[0]] = null;
-            this.update_config(args[0]);
-        }
         this.emit('create', args[0]);
     } else if (channel == "delfeed") {
         //feed instance
         args = msg.split('\x00');
-        if(args[1] != this.instance) {
-            delete this.feeds[args[0]];
-        }
         this.emit('delete', args[0]);
     } else if (channel == "conffeed") {
         //feed instance
         args = msg.split('\x00');
-        if(args[1] != this.instance) {
-            //this.feeds[args[0]] = null;
-            this.update_config(args[0]);
-        }
+        this.emit('config:' + args[0]);
     } else if (channel.substring(0, 13) == 'feed.publish:') {
         //id, event
         args = msg.split('\x00');
@@ -297,30 +285,18 @@ Thoonk.prototype.create = function(name, config) {
  */
 Thoonk.prototype.setConfig = function(feed, config, _newfeed) {
     if(!config.hasOwnProperty('type')) {
-        config['type'] = 'feed';
+        config.type = 'feed';
     }
-    this.mredis.set("feed.config:" + feed, JSON.stringify(config));
-    this.feeds[feed] = config;
-    this.emit("ready:" + feed);
-    if(!_newfeed) {
+    var multi = this.mredis.multi();
+    for(var key in config) {
+        multi.hset('feed.config:' + feed, key, config[key]);
+    }
+    multi.exec(function(err, reply) {
+        this.emit("ready:" + feed);
         this.mredis.publish("conffeed", feed + "\x00" + this.instance);
-    }
-};
-
-/**
- * Retrieve the configuration of the feed from storage and update in memory. 
- * 
- * @param feed The feed name
- * @param callback
- */
-Thoonk.prototype.update_config = function(feed, callback) {
-    this.mredis.get("feed.config:" + feed, function(err, reply) {
-        this.feeds[feed] = JSON.parse(reply);
-        if(callback) {
-           callback(this.feeds[feed]);
-        }
     }.bind(this));
 };
+
 
 /**
  * Whether a feed exists or not.
@@ -330,10 +306,8 @@ Thoonk.prototype.update_config = function(feed, callback) {
  * @param doesnt_callback Callback if it doesn't exist
  */
 Thoonk.prototype.exists = function(feed, exists_callback, doesnt_callback) {
-    if(this.feeds.hasOwnProperty(feed)) exists_callback(true);
     this.mredis.sismember("feeds", feed, function(error, reply) {
         if(reply) {
-            if(!this.feeds.hasOwnProperty(feed)) { this.update_config(feed); } 
             exists_callback(reply);
         } else {
             doesnt_callback(reply);

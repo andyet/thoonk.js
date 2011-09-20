@@ -58,12 +58,12 @@ function Feed(thoonk, name, config, type) {
     this.thoonk.exists(name,
         //exists
         function(reply) {
-            if(!config) { 
-                thoonk.update_config(this.name, this.ready.bind(this));
-            } else {
+            if(config) { 
                 if(!type) { type = 'feed' }
                 if(!config.hasOwnProperty('type')) { config.type = type; }
                 this.thoonk.setConfig(this.name, config);
+            } else {
+                this.thoonk.emit('ready:' + this.name);
             }
         }.bind(this),
         //doesn't
@@ -83,11 +83,11 @@ function feedReady() {
     setTimeout(function() {
         this.emit('ready');
     }.bind(this), 100);
-    this.lredis.subscribe("feed.publish:" + this.name);
-    this.lredis.subscribe("feed.edit:" + this.name);
-    this.lredis.subscribe("feed.retract:" + this.name);
-    this.lredis.subscribe("feed.position:" + this.name);
-    this.subscribed = true;
+    //this.lredis.subscribe("feed.publish:" + this.name);
+    //this.lredis.subscribe("feed.edit:" + this.name);
+    //this.lredis.subscribe("feed.retract:" + this.name);
+    //this.lredis.subscribe("feed.position:" + this.name);
+    //this.subscribed = true;
 }
 
 /**
@@ -113,52 +113,54 @@ function feedPublish(item, id, callback) {
     if(id == null) {
         id = uuid();
     }
-    var max_length = this.thoonk.feeds[this.name]['max_length'];
-    var pmulti = this.mredis.multi();
-    if(max_length) {
-        //attempt to publish, so long as feed.ids doesn't change
-        var publish_attempt = function() {
-            this.mredis.watch('feed.ids:' + this.name);
-            this.mredis.zrange('feed.ids:' + this.name, 0, -max_length, function (err, reply) {
-                var delete_ids = reply;
-                delete_ids.forEach(function (delete_id, idx) {
-                    pmulti.zrem('feed.ids:' + this.name, delete_id);
-                    pmulti.hdel('feed.items:' + this.name, delete_id);
-                    pmulti.publish('feed.retract:' + this.name, delete_id);
-                }.bind(this));
-                pmulti.zadd('feed.ids:' + this.name, Date.now(), id);
-                pmulti.incr('feed.publishes:' + this.name);
-                pmulti.hset('feed.items:' + this.name, id, item);
-                pmulti.exec(function(err, reply) {
-                    this.thoonk.lock.unlock();
-                    if(!reply) { 
-                        publish_attempt();
-                    } else {
-                        if(reply.slice(-3,-2)[0]) {
-                            this.mredis.publish('feed.publish:' + this.name, id + "\x00" + item);
+    this.mredis.hget('feed.config:' + this.name, 'max_length', function(err, reply) {
+        var max_length = reply;
+        var pmulti = this.mredis.multi();
+        if(max_length) {
+            //attempt to publish, so long as feed.ids doesn't change
+            var publish_attempt = function() {
+                this.mredis.watch('feed.ids:' + this.name);
+                this.mredis.zrange('feed.ids:' + this.name, 0, -max_length, function (err, reply) {
+                    var delete_ids = reply;
+                    delete_ids.forEach(function (delete_id, idx) {
+                        pmulti.zrem('feed.ids:' + this.name, delete_id);
+                        pmulti.hdel('feed.items:' + this.name, delete_id);
+                        pmulti.publish('feed.retract:' + this.name, delete_id);
+                    }.bind(this));
+                    pmulti.zadd('feed.ids:' + this.name, Date.now(), id);
+                    pmulti.incr('feed.publishes:' + this.name);
+                    pmulti.hset('feed.items:' + this.name, id, item);
+                    pmulti.exec(function(err, reply) {
+                        this.thoonk.lock.unlock();
+                        if(!reply) { 
+                            publish_attempt();
                         } else {
-                            this.mredis.publish('feed.edit:' + this.name, id + "\x00" + item);
+                            if(reply.slice(-3,-2)[0]) {
+                                this.mredis.publish('feed.publish:' + this.name, id + "\x00" + item);
+                            } else {
+                                this.mredis.publish('feed.edit:' + this.name, id + "\x00" + item);
+                            }
+                            if(callback !== undefined) { callback(item, id); }
                         }
-                        if(callback !== undefined) { callback(item, id); }
-                    }
+                    }.bind(this));
                 }.bind(this));
+            }.bind(this);
+            publish_attempt();
+        } else {
+            pmulti.zadd('feed.ids:' + this.name, Date.now(), id);
+            pmulti.incr('feed.publishes:' + this.name);
+            pmulti.hset('feed.items:' + this.name, id, item);
+            pmulti.exec(function(err,reply) {
+                this.thoonk.lock.unlock();
+                if(reply.slice(-3,-2)[0]) {
+                    this.mredis.publish('feed.publish:' + this.name, id + "\x00" + item);
+                } else {
+                    this.mredis.publish('feed.edit:' + this.name, id + "\x00" + item);
+                }
+                if(callback !== undefined) { callback(item, id); }
             }.bind(this));
-        }.bind(this);
-        publish_attempt();
-    } else {
-        pmulti.zadd('feed.ids:' + this.name, Date.now(), id);
-        pmulti.incr('feed.publishes:' + this.name);
-        pmulti.hset('feed.items:' + this.name, id, item);
-        pmulti.exec(function(err,reply) {
-            this.thoonk.lock.unlock();
-            if(reply.slice(-3,-2)[0]) {
-                this.mredis.publish('feed.publish:' + this.name, id + "\x00" + item);
-            } else {
-                this.mredis.publish('feed.edit:' + this.name, id + "\x00" + item);
-            }
-            if(callback !== undefined) { callback(item, id); }
-        }.bind(this));
-    }
+        }
+    }.bind(this));
 }
 
 /**
@@ -296,15 +298,15 @@ function feedSubscribe(callbacks) {
         this.thoonk.on('position:' + this.name, callbacks['position']);
     }
     if(!this.subscribed) {
+        if(callbacks.hasOwnProperty('done')) {
+            this.thoonk.once('subscribe:feed.position:' + this.name, callbacks.done);
+        }
         this.lredis.once('idle', callbacks['done']);
         this.lredis.subscribe("feed.publish:" + this.name);
         this.lredis.subscribe("feed.edit:" + this.name);
         this.lredis.subscribe("feed.retract:" + this.name);
         this.lredis.subscribe("feed.position:" + this.name);
         this.subscribed = true;
-        if(callbacks.hasOwnProperty('done')) {
-            this.thoonk.once('subscribe:' + this.name, callbacks.done);
-        }
     } else {
         if(callbacks.hasOwnProperty('done')) {
             callbacks.done();

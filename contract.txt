@@ -12,15 +12,19 @@ Delete Feed:
         PUBLISH delfeed [feed]\x00[instance uuid]
     EXEC // if nil: go back to WATCH
 
-Set Config:
-    SET feed.config:[feed] //json(config)
+Set Config Value:
+    HSET feed.config:[feed] name value
     PUBLISH conffeed [feed]\x00[instance uuid]
+
+Get Config Value:
+    HGET feed.config:[feed] name
 
 Feed:
 
     Publish:
         //id may be provided or generated. An id that has already been published will update that id
     
+        max = feed.config:[feed] max_length
         WATCH feed.ids:[feed]
         delete_ids = ZRANGE feed.ids:[feed] 0 [-max] // eg ZRANGE feed.ids:test 0 -5 if the max is 4
         MULTI
