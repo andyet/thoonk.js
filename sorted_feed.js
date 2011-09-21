@@ -53,7 +53,7 @@ function SortedFeed(thoonk, name, config) {
  */
 function sortedFeedPublish(item, id, callback, prepend) {
     this.mredis.incr('feed.idincr:' + this.name, function(err, reply) {
-        var id = reply;
+        if(!id) { id = reply; }
         var multi = this.mredis.multi();
         var relative;
         if(!prepend) {

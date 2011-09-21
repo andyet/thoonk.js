@@ -360,7 +360,6 @@ Thoonk.prototype.loadFeed = function(name, callback) {
         if(err) {
             callback("not found");
         } else {
-            console.log("loadFeed", name, reply);
             if(reply == 'feed') {
                 callback(null, this.feed(name));
             } else if(reply == 'sorted_feed') {
