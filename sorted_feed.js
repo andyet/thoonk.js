@@ -41,6 +41,7 @@ function SortedFeed(thoonk, name, config) {
  *
  * Arguments:
  *     item     -- The contents of the item to publish.
+ *     id       -- ignored, for the sake of consistency
  *     callback -- Executed on successful publication.
  *     prepend  -- If true, add the item to the start of the feed
  *                 instead of the end.
@@ -50,7 +51,7 @@ function SortedFeed(thoonk, name, config) {
  *     item -- The contents of the published item.
  *     id   -- The generated ID of the published item.
  */
-function sortedFeedPublish(item, callback, prepend) {
+function sortedFeedPublish(item, id, callback, prepend) {
     this.mredis.incr('feed.idincr:' + this.name, function(err, reply) {
         var id = reply;
         var multi = this.mredis.multi();
@@ -86,7 +87,7 @@ function sortedFeedPublish(item, callback, prepend) {
  *     id   -- The generated ID of the published item.
  */
 function sortedFeedPrepend(item, callback) {
-    this.publish(item, callback, true);
+    this.publish(item, null, callback, true);
 }
 
 /**

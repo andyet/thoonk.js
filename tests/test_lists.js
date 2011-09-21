@@ -45,7 +45,7 @@ var tests = new TestObject([
                 testfeed.publish("neehaw3");
                 testfeed.publish("neehaw4");
                 testfeed.publish("neehaw5");
-                testfeed.publish("neehaw6", function() {
+                testfeed.publish("neehaw6", null, function() {
                     testfeed.getIds(function(err, ids) {
                         tests.should("ids:" + ids.join(','));
                     });

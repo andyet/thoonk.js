@@ -361,11 +361,11 @@ Thoonk.prototype.loadFeed = function(name, callback) {
             callback("not found");
         } else {
             if(reply == 'feed') {
-                callback(null, new this.feed(name));
+                callback(null, this.feed(name));
             } else if(reply == 'sorted_feed') {
-                callback(null, new this.sortedFeed(name));
+                callback(null, this.sortedFeed(name));
             } else if(reply == 'job') {
-                callback(null, new this.job(name));
+                callback(null, this.job(name));
             } else {
                 callback("unknown type: " + reply);
             }
