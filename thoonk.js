@@ -188,7 +188,7 @@ Thoonk.prototype.namespaceSubscribe = function(pattern, callbacks) {
     if(callbacks['position']) {
         this.thoonk.on('ns.position:' + pattern, callbacks['position']);
     }
-    if(!this.subscribepatterns.hasOwnPropery(pattern)) {
+    if(!this.subscribepatterns.hasOwnProperty(pattern)) {
         this.lredis.psubscribe("feed.publish:" + pattern);
         this.lredis.psubscribe("feed.edit:" + pattern);
         this.lredis.psubscribe("feed.retract:" + pattern);
