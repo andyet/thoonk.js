@@ -44,6 +44,7 @@ var EventEmitter = require("events").EventEmitter,
  *     type   -- Internal use only.
  */
 function Feed(thoonk, name, config, type) {
+    type || (type = 'feed');
     EventEmitter.call(this);
     this.thoonk = thoonk;
 
@@ -59,7 +60,6 @@ function Feed(thoonk, name, config, type) {
         //exists
         function(reply) {
             if(config) { 
-                if(!type) { type = 'feed' }
                 if(!config.hasOwnProperty('type')) { config.type = type; }
                 this.thoonk.setConfig(this.name, config);
             } else {
@@ -68,6 +68,8 @@ function Feed(thoonk, name, config, type) {
         }.bind(this),
         //doesn't
         function(reply) {
+            config || (config = {'type': type});
+            if(!config.hasOwnProperty('type')) { config.type = type; }
             thoonk.create(name, config);
         }.bind(this)
     );
