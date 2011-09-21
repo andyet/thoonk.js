@@ -177,16 +177,16 @@ Thoonk.prototype.handle_punsubscribe = function(pattern, count) {
  */
 Thoonk.prototype.namespaceSubscribe = function(pattern, callbacks) {
     if(callbacks['publish']) {
-        this.thoonk.on('ns.publish:' + pattern, callbacks['publish']);
+        this.on('ns.publish:' + pattern, callbacks['publish']);
     }
     if(callbacks['edit']) {
-        this.thoonk.on('ns.edit:' + pattern, callbacks['edit']);
+        this.on('ns.edit:' + pattern, callbacks['edit']);
     }
     if(callbacks['retract']) {
-        this.thoonk.on('ns.retract:' + pattern, callbacks['retract']);
+        this.on('ns.retract:' + pattern, callbacks['retract']);
     }
     if(callbacks['position']) {
-        this.thoonk.on('ns.position:' + pattern, callbacks['position']);
+        this.on('ns.position:' + pattern, callbacks['position']);
     }
     if(!this.subscribepatterns.hasOwnProperty(pattern)) {
         this.lredis.psubscribe("feed.publish:" + pattern);
@@ -197,7 +197,7 @@ Thoonk.prototype.namespaceSubscribe = function(pattern, callbacks) {
     }
     this.subscribepatterns[pattern]++;
     if(callbacks.hasOwnProperty('done')) {
-        this.thoonk.once('psubscribe:feed.position:' + pattern, callbacks.done);
+        this.once('psubscribe:feed.position:' + pattern, callbacks.done);
     }
 }
 
@@ -221,16 +221,16 @@ Thoonk.prototype.namespaceUnsubscribe = function(pattern, callbacks) {
     if(this.subscribepatterns.hasOwnProperty(pattern)) {
         this.subscribepatterns[pattern]--;
         if(callbacks['publish']) {
-            this.thoonk.removeListener('ns.publish:' + pattern, callbacks['publish']);
+            this.removeListener('ns.publish:' + pattern, callbacks['publish']);
         }
         if(callbacks['edit']) {
-            this.thoonk.removeListener('ns.edit:' + pattern, callbacks['edit']);
+            this.removeListener('ns.edit:' + pattern, callbacks['edit']);
         }
         if(callbacks['retract']) {
-            this.thoonk.removeListener('ns.retract:' + pattern, callbacks['retract']);
+            this.removeListener('ns.retract:' + pattern, callbacks['retract']);
         }
         if(callbacks['position']) {
-            this.thoonk.removeListener('ns.position:' + pattern, callbacks['position']);
+            this.removeListener('ns.position:' + pattern, callbacks['position']);
         }
         if(this.subscribepatterns[pattern] == 0) {
             delete this.subscribepatterns[pattern];
@@ -240,7 +240,7 @@ Thoonk.prototype.namespaceUnsubscribe = function(pattern, callbacks) {
             this.lredis.punsubscribe("feed.position:" + pattern);
         }
         if(callbacks.hasOwnProperty('done')) {
-            this.thoonk.once('punsubscribe:feed.position:' + pattern, callbacks.done);
+            this.once('punsubscribe:feed.position:' + pattern, callbacks.done);
         }
     } else {
         if(callbacks.hasOwnProperty('done')) {
