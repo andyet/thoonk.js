@@ -116,7 +116,7 @@ function sortedFeedEdit(item, id, callback) {
             this.mredis.multi()
                 .hset('feed.items:' + this.name, id, item)
                 .incr('feed.publishes:' + this.name)
-                .publish('feed.publish:' + this.name, id + '\x00' + item)
+                .publish('feed.edit:' + this.name, id + '\x00' + item)
             .exec(function(err, reply) {
                 this.thoonk.lock.unlock();
                 if(!reply) {

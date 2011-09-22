@@ -221,16 +221,16 @@ Thoonk.prototype.namespaceUnsubscribe = function(pattern, callbacks) {
     if(this.subscribepatterns.hasOwnProperty(pattern)) {
         this.subscribepatterns[pattern]--;
         if(callbacks['publish']) {
-            this.removeListener('ns.publish:' + pattern, callbacks['publish']);
+            this.removeListener('ns.publish:' + 'feed.publish:' + pattern, callbacks['publish']);
         }
         if(callbacks['edit']) {
-            this.removeListener('ns.edit:' + pattern, callbacks['edit']);
+            this.removeListener('ns.edit:' + 'feed.edit:' + pattern, callbacks['edit']);
         }
         if(callbacks['retract']) {
-            this.removeListener('ns.retract:' + pattern, callbacks['retract']);
+            this.removeListener('ns.retract:' + 'feed.retract:' + pattern, callbacks['retract']);
         }
         if(callbacks['position']) {
-            this.removeListener('ns.position:' + pattern, callbacks['position']);
+            this.removeListener('ns.position:' + 'feed.position:' + pattern, callbacks['position']);
         }
         if(this.subscribepatterns[pattern] == 0) {
             delete this.subscribepatterns[pattern];
