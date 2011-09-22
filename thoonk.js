@@ -106,6 +106,7 @@ Thoonk.prototype.handle_message = function(channel, msg) {
 
 //map the pattern event to the subscription callback
 Thoonk.prototype.handle_pmessage = function(pattern, channel, msg) {
+    console.log("handle pmessage:", pattern, channel, msg);
     var args;
     if (channel.substring(0, 13) == 'feed.publish:') {
         //id, event

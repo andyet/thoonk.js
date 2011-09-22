@@ -163,27 +163,27 @@ function sortedFeedPublishInsert(item, rel_id, callback, placement) {
                     this.thoonk.lock.unlock();
                     if(callback) { callback('DoesNotExist', item, rel_id); }
                 }.bind(this));
-                return;
-            }
-            this.mredis.incr('feed.idincr:' + this.name, function(err, reply) {
-                var id = reply;
-                this.mredis.multi()
-                    .linsert('feed.ids:' + this.name, placement, rel_id, id)
-                    .hset('feed.items:' + this.name, id, item)
-                    .incr('feed.publishes:' + this.name)
-                    .publish('feed.publish:' + this.name, id + '\x00' + item)
-                    .publish('feed.position:' + this.name, id + '\x00' + posUpdate)
-                .exec(function(err, reply) {
-                    this.thoonk.lock.unlock();
-                    if(!reply) {
-                        process.nexttick(function() {
-                            this.publishInsert(item, rel_id, callback, placement);
-                        }.bind(this));
-                    } else {
-                        if(callback) { callback(null, item, id); }
-                    }
+            } else {
+                this.mredis.incr('feed.idincr:' + this.name, function(err, reply) {
+                    var id = reply;
+                    this.mredis.multi()
+                        .linsert('feed.ids:' + this.name, placement, rel_id, id)
+                        .hset('feed.items:' + this.name, id, item)
+                        .incr('feed.publishes:' + this.name)
+                        .publish('feed.publish:' + this.name, id + '\x00' + item)
+                        .publish('feed.position:' + this.name, id + '\x00' + posUpdate)
+                    .exec(function(err, reply) {
+                        this.thoonk.lock.unlock();
+                        if(!reply) {
+                            process.nexttick(function() {
+                                this.publishInsert(item, rel_id, callback, placement);
+                            }.bind(this));
+                        } else {
+                            if(callback) { callback(null, item, id); }
+                        }
+                    }.bind(this));
                 }.bind(this));
-            }.bind(this));
+            }
         }.bind(this));
     }.bind(this));
 }
@@ -268,38 +268,37 @@ function sortedFeedMove(id, relative_id, placement, callback) {
                     this.thoonk.lock.unlock();
                     if(callback) { callback('DoesNotExist', relative_id, placement); }
                 }.bind(this));
-                return;
-            }
-            this.mredis.hexists('feed.items:' + this.name, id, function(err, reply) {
-                if(!reply) {
-                    this.mredis.unwatch(function(err, reply) {
-                        this.thoonk.lock.unlock();
-                        if(callback) { callback('DoesNotExist', id, placement); }
-                    }.bind(this));
-                    return;
-                } else {
-                    var multi = this.mredis.multi();
-                    multi.lrem('feed.ids:' + this.name, 1, id);
-                    if(placement == 'BEFORE' || placement == 'AFTER') {
-                        multi.linsert('feed.ids:' + this.name, placement, relative_id, id);
-                    } else if (placement == 'BEGIN') {
-                        multi.lpush('feed.ids:' + this.name, id);
-                    } else if (placement == 'END') {
-                        multi.rpush('feed.ids:' + this.name, id);
-                    }
-                    multi.publish('feed.position:' + this.name, id + '\x00' + relative);
-                    multi.exec(function(err, reply) {
-                        this.thoonk.lock.unlock();
-                        if(!reply) {
-                            process.nexttick(function() {
-                                this.publishInsert(item, before_id, callback, placement);
-                            }.bind(this));
-                        } else {
-                            if(callback) { callback(null, id, relative); }
+            } else {
+                this.mredis.hexists('feed.items:' + this.name, id, function(err, reply) {
+                    if(!reply) {
+                        this.mredis.unwatch(function(err, reply) {
+                            this.thoonk.lock.unlock();
+                            if(callback) { callback('DoesNotExist', id, placement); }
+                        }.bind(this));
+                    } else {
+                        var multi = this.mredis.multi();
+                        multi.lrem('feed.ids:' + this.name, 1, id);
+                        if(placement == 'BEFORE' || placement == 'AFTER') {
+                            multi.linsert('feed.ids:' + this.name, placement, relative_id, id);
+                        } else if (placement == 'BEGIN') {
+                            multi.lpush('feed.ids:' + this.name, id);
+                        } else if (placement == 'END') {
+                            multi.rpush('feed.ids:' + this.name, id);
                         }
-                    }.bind(this));
-                }
-            }.bind(this));
+                        multi.publish('feed.position:' + this.name, id + '\x00' + relative);
+                        multi.exec(function(err, reply) {
+                            this.thoonk.lock.unlock();
+                            if(!reply) {
+                                process.nexttick(function() {
+                                    this.publishInsert(item, before_id, callback, placement);
+                                }.bind(this));
+                            } else {
+                                if(callback) { callback(null, id, relative); }
+                            }
+                        }.bind(this));
+                    }
+                }.bind(this));
+            }
         }.bind(this));
     }.bind(this));
 

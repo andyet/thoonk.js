@@ -288,7 +288,7 @@ function jobStall(id, callback) {
                 this.thoonk.lock.unlock();
                 if(!reply) {
                     process.nextTick(function() {
-                        this.jobStall(id, callback);
+                        this.stall(id, callback);
                     }.bind(this));
                 } else {
                     if(callback) { callback(id, null); }

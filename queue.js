@@ -66,7 +66,7 @@ function queuePublish(item, callback, priority) {
         this.thoonk.lock.unlock();
         if(!replies) {
             process.nextTick(function() {
-                this.put(item, priority, callback);
+                this.put(item, callback, priority);
             }.bind(this));
         } else {
             if(callback) { callback(item, id); }
