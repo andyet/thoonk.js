@@ -106,7 +106,6 @@ Thoonk.prototype.handle_message = function(channel, msg) {
 
 //map the pattern event to the subscription callback
 Thoonk.prototype.handle_pmessage = function(pattern, channel, msg) {
-    console.log("handle pmessage:", pattern, channel, msg);
     var args;
     if (channel.substring(0, 13) == 'feed.publish:') {
         //id, event
@@ -178,16 +177,16 @@ Thoonk.prototype.handle_punsubscribe = function(pattern, count) {
  */
 Thoonk.prototype.namespaceSubscribe = function(pattern, callbacks) {
     if(callbacks['publish']) {
-        this.on('ns.publish:' + pattern, callbacks['publish']);
+        this.on('ns.publish:' + 'feed.publish:' + pattern, callbacks['publish']);
     }
     if(callbacks['edit']) {
-        this.on('ns.edit:' + pattern, callbacks['edit']);
+        this.on('ns.edit:' + 'feed.edit:' + pattern, callbacks['edit']);
     }
     if(callbacks['retract']) {
-        this.on('ns.retract:' + pattern, callbacks['retract']);
+        this.on('ns.retract:' + 'feed.retract:' + pattern, callbacks['retract']);
     }
     if(callbacks['position']) {
-        this.on('ns.position:' + pattern, callbacks['position']);
+        this.on('ns.position:' + 'feed.position:' + pattern, callbacks['position']);
     }
     if(!this.subscribepatterns.hasOwnProperty(pattern)) {
         this.lredis.psubscribe("feed.publish:" + pattern);
