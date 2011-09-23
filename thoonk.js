@@ -25,14 +25,15 @@ var Thoonk = exports.Thoonk = function Thoonk(host, port, db) {
     host || (host = "127.0.0.1");
     port || (port = 6379);
     db || (db = 0);
+    this.host = host;
+    this.port = port;
+    this.db = db;
     EventEmitter.call(this);
     this.lredis = redis.createClient(port, host);
     this.lredis.select(db);
     this.lredis.subscribe("newfeed", "delfeed", "conffeed");
     this.mredis = redis.createClient(port, host);
     this.mredis.select(db);
-    this.bredis = redis.createClient(port, host);
-    this.bredis.select(db);
     this.lock = new padlock.Padlock();
 
     this.instance = uuid();
@@ -43,10 +44,6 @@ var Thoonk = exports.Thoonk = function Thoonk(host, port, db) {
     this.lredis.on("subscribe", this.handle_subscribe.bind(this));
     this.lredis.on("psubscribe", this.handle_psubscribe.bind(this));
     this.lredis.on("punsubscribe", this.handle_punsubscribe.bind(this));
-
-    this.lock.on('timeout', function(lockid, callback, args) {
-        console.log("error: Timeout on \n", callback.toString());
-    });
 
     this.subscribepatterns = {};
 
@@ -383,7 +380,7 @@ Thoonk.prototype.loadFeed = function(name, callback) {
 Thoonk.prototype.quit = function() {
     this.mredis.quit();
     this.lredis.quit();
-    this.bredis.quit();
+    this.emit('quit');
 };
 
 /**

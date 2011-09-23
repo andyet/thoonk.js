@@ -28,12 +28,12 @@ var Feed = require("./feed.js").Feed;
  */
 function SortedFeed(thoonk, name, config) {
     Feed.call(this, thoonk, name, config, 'sorted_feed');
-    this.publish = this.thoonk.lock.require(sortedFeedPublish, this, 10000);
-    this.edit = this.thoonk.lock.require(sortedFeedEdit, this, 10000);
-    this.publishInsert = this.thoonk.lock.require(sortedFeedPublishInsert, this, 10000);
-    this.move = this.thoonk.lock.require(sortedFeedMove, this, 10000);
-    this.retract = this.thoonk.lock.require(sortedFeedRetract, this, 10000);
-    this.getAll = this.thoonk.lock.require(sortedFeedGetAll, this, 10000);
+    this.publish = this.thoonk.lock.require(sortedFeedPublish, this);
+    this.edit = this.thoonk.lock.require(sortedFeedEdit, this);
+    this.publishInsert = this.thoonk.lock.require(sortedFeedPublishInsert, this);
+    this.move = this.thoonk.lock.require(sortedFeedMove, this);
+    this.retract = this.thoonk.lock.require(sortedFeedRetract, this);
+    this.getAll = this.thoonk.lock.require(sortedFeedGetAll, this);
 }
 
 /**

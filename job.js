@@ -5,7 +5,8 @@
 
 var Feed = require("./feed.js").Feed,
     Queue = require("./queue.js").Queue,
-    uuid = require("node-uuid");
+    uuid = require("node-uuid"),
+    redis = require('redis');
 
 /**
  * A Thoonk Job is a queue which does not completely remove items
@@ -72,12 +73,17 @@ var Feed = require("./feed.js").Feed,
  */
 function Job(thoonk, name, config) {
     Feed.call(this, thoonk, name, config, 'job');
-    this.publish = this.thoonk.lock.require(jobPublish, this, 10000);
-    this.get = this.thoonk.lock.require(jobGet, this, 10000);
-    this.finish = this.thoonk.lock.require(jobFinish, this, 10000);
-    this.cancel = this.thoonk.lock.require(jobCancel, this, 10000);
-    this.stall = this.thoonk.lock.require(jobStall, this, 10000);
-    this.retry = this.thoonk.lock.require(jobRetry, this, 10000);
+    this.bredis = redis.createClient(this.thoonk.port, this.thoonk.host);
+    this.bredis.select(this.thoonk.db);
+    this.publish = this.thoonk.lock.require(jobPublish, this);
+    this.get = this.thoonk.lock.require(jobGet, this);
+    this.finish = this.thoonk.lock.require(jobFinish, this);
+    this.cancel = this.thoonk.lock.require(jobCancel, this);
+    this.stall = this.thoonk.lock.require(jobStall, this);
+    this.retry = this.thoonk.lock.require(jobRetry, this);
+    this.thoonk.on('quit', function() {
+        this.bredis.quit();
+    }.bind(this));
 }
 
 /**
@@ -92,6 +98,7 @@ function Job(thoonk, name, config) {
  *     id            -- Optionally set the id of the job.
  * 
  * Callback Arguments:
+ *     error
  *     item  -- The contents of the job.
  *     id    -- The ID of the submitted job.
  */
@@ -110,7 +117,7 @@ function jobPublish(item, callback, high_priority, id) {
     multi.zadd("feed.published:" + this.name, Date.now(), id);
     multi.exec(function(err, reply) {
         this.thoonk.lock.unlock();
-        if(callback) { callback(item, id); }
+        if(callback) { callback(null, item, id); }
     }.bind(this));
 }
 
@@ -122,6 +129,7 @@ function jobPublish(item, callback, high_priority, id) {
  *     callback -- 
  *
  * Callback Arguments:
+ *     error
  *     result  -- The content of the job request.
  *     id      -- The ID of the job.
  *     timeout -- Flag indicating that the request timed out.
@@ -136,13 +144,13 @@ function jobGet(timeout, callback) {
                 .hget("feed.items:" + this.name, result[1])
             .exec(function(err, result) {
                 this.thoonk.lock.unlock();
-                callback(result, id, false);
+                callback(null, result, id, false);
             }.bind(this));
             var d = new Date();
         } else {
             this.thoonk.lock.unlock();
             //shit timed out, yo
-            callback(null, null, true);
+            callback('timeout', null, null, true);
         }
     }.bind(this));
 }
@@ -158,8 +166,8 @@ function jobGet(timeout, callback) {
  *                  Defaults to indefinitely.
  *
  * Callback Arguments:
- *     id    -- The ID of the finished job.
  *     error -- Boolean indicating that an error occurred.
+ *     id    -- The ID of the finished job.
  */
 function jobFinish(id, callback, setresult, timeout) {
     this.mredis.watch("feed.claimed:" + this.name);
@@ -167,7 +175,7 @@ function jobFinish(id, callback, setresult, timeout) {
         if(result == null) {
             this.thoonk.lock.unlock();
             if(callback) {
-                callback(id, true);
+                callback('Job not claimed', id);
             }
         } else {
             var multi = this.mredis.multi();
@@ -190,7 +198,7 @@ function jobFinish(id, callback, setresult, timeout) {
                     }.bind(this));
                 } else {
                     if(callback) {
-                        callback(id, false);
+                        callback(null, id);
                     }
                 }
             }.bind(this));
@@ -208,6 +216,7 @@ function jobFinish(id, callback, setresult, timeout) {
  *     callback -- Executed once an error occurs or the results arrive.
  *
  * Callback Arguments:
+ *     error
  *     id       -- The ID of the job.
  *     reply    -- The result.
  *     timedout -- Flag indicating that the request had timed out.
@@ -215,9 +224,9 @@ function jobFinish(id, callback, setresult, timeout) {
 function jobGetResult(id, timeout, callback) {
     this.mredis.blpop("feed.jobfinished:" + this.name + "\x00" + id, timeout, function(err, result) {
         if(err) {
-            callback(id, result, true);
+            callback('timeout', id, result, true);
         } else {
-            callback(id, result, false);
+            callback(null, id, result, false);
         }
     }.bind(this));
 }
@@ -230,15 +239,15 @@ function jobGetResult(id, timeout, callback) {
  *     callback -- Executed if an error occurs.
  *
  * Callback Arguments:
- *     id    -- The ID of the cancelled job.
  *     error -- A string description of the error.
+ *     id    -- The ID of the cancelled job.
  */
 function jobCancel(id, callback) {
     this.mredis.watch("feed.claimed:" + this.name);
     this.mredis.zrank("feed.claimed:" + this.name, id, function(err, result) {
         if(result == null) {
             this.thoonk.lock.unlock();
-            if(callback) { callback(id, "id unclaimed"); }
+            if(callback) { callback("id unclaimed", id); }
         } else {
             this.mredis.multi()
                 .hincrby("feed.cancelled:" + this.name, id, 1)
@@ -251,7 +260,7 @@ function jobCancel(id, callback) {
                         this.cancel(id, callback);
                     }.bind(this));
                 } else {
-                    if(callback) { callback(id, null); }
+                    if(callback) { callback(null, id); }
                 }
             }.bind(this));
         }
@@ -268,16 +277,15 @@ function jobCancel(id, callback) {
  *     callback -- Executed if an error occurs.
  *
  * Callback Arguments:
- *     id    -- The ID of the stalled job.
  *     error -- A string description of the error.
- *
+ *     id    -- The ID of the stalled job.
  */
 function jobStall(id, callback) {
     this.mredis.watch("feed.claimed:" + this.name);
     this.mredis.zrank("feed.claimed:" + this.name, id, function(err, result) {
         if(result == null) {
             this.thoonk.lock.unlock();
-            if(callback) { callback(id, "id already claimed"); }
+            if(callback) { callback("id already claimed", id); }
         } else {
             this.mredis.multi()
                 .zrem("feed.claimed:" + this.name, id)
@@ -291,7 +299,7 @@ function jobStall(id, callback) {
                         this.stall(id, callback);
                     }.bind(this));
                 } else {
-                    if(callback) { callback(id, null); }
+                    if(callback) { callback(null, id); }
                 }
             }.bind(this));
         }
@@ -306,15 +314,15 @@ function jobStall(id, callback) {
  *     callback -- Executed if an error occurred.
  *
  * Callback Arguments:
- *     id    -- The ID of the resumed job.
  *     error -- A string description of the error.
+ *     id    -- The ID of the resumed job.
  */
 function jobRetry(id, callback) {
     this.mredis.watch("feed.stalled:" + this.name);
     this.mredis.sismember("feed.stalled:" + this.name, id, function(err, result) {
         if(result == null) {
             this.thoonk.lock.unlock();
-            if(callback) { callback(id, "id not stalled"); }
+            if(callback) { callback("id not stalled", id); }
         } else {
             this.mredis.multi()
                 .srem("feed.stalled:" + this.name, id)
@@ -327,7 +335,7 @@ function jobRetry(id, callback) {
                         this.retry(id, callback);
                     }.bind(this));
                 } else {
-                    if(callback) { callback(id, null); }
+                    if(callback) { callback(null, id); }
                 }
             }.bind(this));
         }
@@ -342,13 +350,11 @@ function jobRetry(id, callback) {
  *     callback -- Called with result.
  *
  * Callback Arguments:
- *     num   -- The number of times the job has been cancelled.
  *     error -- A string description of the error.
+ *     num   -- The number of times the job has been cancelled.
  */
 function jobGetNumOfFailures(id, callback) {
-    this.mredis.hget("feed.cancelled:" + this.name, id, function(err, result) {
-        callback(result, err);
-    });
+    this.mredis.hget("feed.cancelled:" + this.name, id, callback);
 }
 
 /**
@@ -359,15 +365,15 @@ function jobGetNumOfFailures(id, callback) {
  *     callback -- Executed if an error occurred.
  *
  * Callback Arguments:
- *     id    -- The ID of the deleted job.
  *     error -- A string description of the error.
+ *     id    -- The ID of the deleted job.
  */
 function jobRetract(id, callback) {
     this.mredis.watch("feed.items:" + this.name);
     this.mredis.hexists("feed.items:" + this.name, id, function(err, result) {
         if(result == null) {
             this.thoonk.lock.unlock();
-            if(callback) { callback(id, "id not found"); }
+            if(callback) { callback("id not found", id); }
         } else {
             this.mredis.multi()
                 .hdel('feed:items:' + this.name, id)
@@ -383,7 +389,7 @@ function jobRetract(id, callback) {
                         this.retact(id, callback);
                     }.bind(this));
                 } else {
-                    if(callback) { callback(id, null); }
+                    if(callback) { callback(null, id); }
                 }
             }.bind(this));
         }

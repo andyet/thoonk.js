@@ -51,7 +51,6 @@ function Feed(thoonk, name, config, type) {
     //local references
     this.mredis = this.thoonk.mredis;
     this.lredis = this.thoonk.lredis;
-    this.bredis = this.thoonk.bredis;
 
     this.name = name;
     this.subscribed = false;
@@ -74,9 +73,9 @@ function Feed(thoonk, name, config, type) {
         }.bind(this)
     );
 
-    this.publish = this.thoonk.lock.require(feedPublish, this, 10000);
-    this.edit = this.thoonk.lock.require(feedPublish, this, 10000);
-    this.retract = this.thoonk.lock.require(feedRetract, this, 10000);
+    this.publish = this.thoonk.lock.require(feedPublish, this);
+    this.edit = this.thoonk.lock.require(feedPublish, this);
+    this.retract = this.thoonk.lock.require(feedRetract, this);
 }
 
 function feedReady() {
