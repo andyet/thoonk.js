@@ -145,7 +145,7 @@ function jobGet(timeout, callback) {
                 .hget("feed.items:" + this.name, result[1])
             .exec(function(err, result) {
                 this.thoonk.lock.unlock();
-                callback(null, result, id, false);
+                callback(null, result[1], id, false);
             }.bind(this));
             var d = new Date();
         } else {
