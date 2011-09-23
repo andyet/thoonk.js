@@ -72,12 +72,12 @@ var Feed = require("./feed.js").Feed,
  */
 function Job(thoonk, name, config) {
     Feed.call(this, thoonk, name, config, 'job');
-    this.publish = this.thoonk.lock.require(jobPublish, this);
-    this.get = this.thoonk.lock.require(jobGet, this);
-    this.finish = this.thoonk.lock.require(jobFinish, this);
-    this.cancel = this.thoonk.lock.require(jobCancel, this);
-    this.stall = this.thoonk.lock.require(jobStall, this);
-    this.retry = this.thoonk.lock.require(jobRetry, this);
+    this.publish = this.thoonk.lock.require(jobPublish, this, 10000);
+    this.get = this.thoonk.lock.require(jobGet, this, 10000);
+    this.finish = this.thoonk.lock.require(jobFinish, this, 10000);
+    this.cancel = this.thoonk.lock.require(jobCancel, this, 10000);
+    this.stall = this.thoonk.lock.require(jobStall, this, 10000);
+    this.retry = this.thoonk.lock.require(jobRetry, this, 10000);
 }
 
 /**

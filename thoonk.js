@@ -44,6 +44,10 @@ var Thoonk = exports.Thoonk = function Thoonk(host, port, db) {
     this.lredis.on("psubscribe", this.handle_psubscribe.bind(this));
     this.lredis.on("punsubscribe", this.handle_punsubscribe.bind(this));
 
+    this.lock.on('timeout', function(lockid, callback, args) {
+        console.log("error: Timeout on \n", callback.toString());
+    });
+
     this.subscribepatterns = {};
 
     this.mredis.on("error", function(error) {
