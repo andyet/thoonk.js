@@ -258,7 +258,24 @@ function feedGetItem(id, callback) {
  *     reply -- The Redis reply object.
  */
 function feedGetAll(callback) {
-    return this.mredis.hgetall("feed.items:" + this.name, callback);
+    var multi = this.mredis.multi();
+    multi.zrange('feed.ids:' + this.name, 0, -1);
+    multi.hgetall('feed.items:' + this.name);
+    multi.exec(function(err, reply) {
+        var ids, items;
+        ids = reply[0];
+        items = reply[1];
+        var answers =[];
+        for(var idx in ids) {
+            answers.push({id: ids[idx], item: items[ids[idx]]});
+        }
+        if(err) {
+            callback(err, null);
+        } else {
+            callback(null, answers);
+        }
+        this.thoonk.lock.unlock();
+    }.bind(this));
 }
 
 /**
