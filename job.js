@@ -76,7 +76,7 @@ function Job(thoonk, name, config) {
     this.bredis = redis.createClient(this.thoonk.port, this.thoonk.host);
     this.bredis.select(this.thoonk.db);
     this.publish = this.thoonk.lock.require(jobPublish, this);
-    this.get = this.thoonk.lock.require(jobGet, this);
+    //this.get = this.thoonk.lock.require(jobGet, this);
     this.finish = this.thoonk.lock.require(jobFinish, this);
     this.cancel = this.thoonk.lock.require(jobCancel, this);
     this.stall = this.thoonk.lock.require(jobStall, this);
@@ -136,7 +136,8 @@ function jobPublish(item, callback, high_priority, id) {
  */
 function jobGet(timeout, callback) {
     if(!timeout) timeout = 0;
-    this.bredis.brpop("feed.ids:" + this.name, timeout, function(err, result) {
+    //this.bredis.brpop("feed.ids:" + this.name, timeout, function(err, result) {
+    var brpopresult = function(err, result) {
         if(!err && result) {
             var id = result[1];
             this.mredis.multi()
@@ -152,7 +153,9 @@ function jobGet(timeout, callback) {
             //shit timed out, yo
             callback('timeout', null, null, true);
         }
-    }.bind(this));
+    }.bind(this);
+    brpopresult = this.thoonk.lock.require(brpopresult, this);
+    this.bredis.brpop("feed.ids:" + this.name, timeout, brpopresult);
 }
 
 /**
