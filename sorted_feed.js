@@ -79,6 +79,7 @@ function sortedFeedPublish(item, id, callback, prepend) {
  *
  * Arguments:
  *     item     -- The contents of the item to publish.
+ *     id
  *     callback -- Executed on successful publication.
  *
  * Callback Arguments:
@@ -86,8 +87,8 @@ function sortedFeedPublish(item, id, callback, prepend) {
  *     item -- The contents of the published item.
  *     id   -- The generated ID of the published item.
  */
-function sortedFeedPrepend(item, callback) {
-    this.publish(item, null, callback, true);
+function sortedFeedPrepend(item, id, callback) {
+    this.publish(item, id, callback, true);
 }
 
 /**
