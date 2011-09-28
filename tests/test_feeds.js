@@ -66,7 +66,7 @@ var tests = new TestObject([
                                 tests.should('hasId1:' + result);
                             });
                             testfeed.getAll(function(err, all) {
-                                var other = {'3': "neehaw3", '4': "neehaw4", '5': "neehaw5", '6': "neehaw6"};
+                                var other = [{id: '3', item: "neehaw3"}, {id:'4', item: "neehaw4"}, {id: '5', item: "neehaw5"}, {id:'6',item: "neehaw6"}];
                                 tests.compare(all, other);
                                 testfeed.retract("6", function(id, err) {
                                 });

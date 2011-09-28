@@ -117,7 +117,13 @@ function jobPublish(item, callback, high_priority, id) {
     multi.zadd("feed.published:" + this.name, Date.now(), id);
     multi.exec(function(err, reply) {
         this.thoonk.lock.unlock();
-        if(callback) { callback(null, item, id); }
+        if(err || !reply) {
+            processnextTick(function() {
+                this.publish(item, callback, high_priority, id);
+            }.bind(this));
+        } else if(callback) {
+            callback(null, item, id);
+        }
     }.bind(this));
 }
 
@@ -138,20 +144,27 @@ function jobGet(timeout, callback) {
     if(!timeout) timeout = 0;
     //this.bredis.brpop("feed.ids:" + this.name, timeout, function(err, result) {
     var brpopresult = function(err, result) {
-        if(!err && result) {
+        if(err || !result) {
+            //unwatch unnecessary since no watch
+            this.thoonk.lock.unlock();
+            //shit timed out, yo
+            callback('timeout', null, null, true);
+        } else {
             var id = result[1];
             this.mredis.multi()
                 .zadd("feed.claimed:" + this.name, Date.now(), result[1])
                 .hget("feed.items:" + this.name, result[1])
             .exec(function(err, result) {
                 this.thoonk.lock.unlock();
-                callback(null, result[1], id, false);
+                if(err || !result) {
+                    processnextTick(function() {
+                        this.get(timeout, callback);
+                    }.bind(this));
+                } else if(callback) {
+                    callback(null, result[1], id, false);
+                }
             }.bind(this));
             var d = new Date();
-        } else {
-            this.thoonk.lock.unlock();
-            //shit timed out, yo
-            callback('timeout', null, null, true);
         }
     }.bind(this);
     brpopresult = this.thoonk.lock.require(brpopresult, this);
@@ -176,10 +189,12 @@ function jobFinish(id, callback, setresult, timeout) {
     this.mredis.watch("feed.claimed:" + this.name);
     this.mredis.zrank("feed.claimed:" + this.name, id, function(err, result) {
         if(result == null) {
-            this.thoonk.lock.unlock();
-            if(callback) {
-                callback('Job not claimed', id);
-            }
+            this.mredis.unwatch(function(err, reply) {
+                this.thoonk.lock.unlock();
+                if(callback) {
+                    callback('Job not claimed', id);
+                }
+            }.bind(this));
         } else {
             var multi = this.mredis.multi();
             multi.zrem("feed.claimed:" + this.name, id);
@@ -197,7 +212,7 @@ function jobFinish(id, callback, setresult, timeout) {
                 if(reply == null) {
                     //watch failed, try again
                     process.nextTick(function() {
-                        this.finish(id, callback, setresult);
+                        this.finish(id, callback, setresult, timeout);
                     }.bind(this));
                 } else {
                     if(callback) {
@@ -249,8 +264,10 @@ function jobCancel(id, callback) {
     this.mredis.watch("feed.claimed:" + this.name);
     this.mredis.zrank("feed.claimed:" + this.name, id, function(err, result) {
         if(result == null) {
-            this.thoonk.lock.unlock();
-            if(callback) { callback("id unclaimed", id); }
+            this.mredis.unwatch(function(err, reply) {
+                this.thoonk.lock.unlock();
+                if(callback) { callback("id unclaimed", id); }
+            }.bind(this));
         } else {
             this.mredis.multi()
                 .hincrby("feed.cancelled:" + this.name, id, 1)
@@ -258,7 +275,7 @@ function jobCancel(id, callback) {
                 .zrem("feed.claimed:" + this.name, id)
             .exec(function(err, reply) {
                 this.thoonk.lock.unlock();
-                if(!reply) {
+                if(err || !reply) {
                     process.nextTick(function() {
                         this.cancel(id, callback);
                     }.bind(this));
@@ -287,8 +304,10 @@ function jobStall(id, callback) {
     this.mredis.watch("feed.claimed:" + this.name);
     this.mredis.zrank("feed.claimed:" + this.name, id, function(err, result) {
         if(result == null) {
-            this.thoonk.lock.unlock();
-            if(callback) { callback("id already claimed", id); }
+            this.mredis.unwatch(function(err, reply) {
+                this.thoonk.lock.unlock();
+                if(callback) { callback("id already claimed", id); }
+            }.bind(this));
         } else {
             this.mredis.multi()
                 .zrem("feed.claimed:" + this.name, id)
@@ -324,8 +343,10 @@ function jobRetry(id, callback) {
     this.mredis.watch("feed.stalled:" + this.name);
     this.mredis.sismember("feed.stalled:" + this.name, id, function(err, result) {
         if(result == null) {
-            this.thoonk.lock.unlock();
-            if(callback) { callback("id not stalled", id); }
+            this.mredis.unwatch(function(err, reply) {
+                this.thoonk.lock.unlock();
+                if(callback) { callback("id not stalled", id); }
+            }.bind(this));
         } else {
             this.mredis.multi()
                 .srem("feed.stalled:" + this.name, id)
@@ -375,8 +396,10 @@ function jobRetract(id, callback) {
     this.mredis.watch("feed.items:" + this.name);
     this.mredis.hexists("feed.items:" + this.name, id, function(err, result) {
         if(result == null) {
-            this.thoonk.lock.unlock();
-            if(callback) { callback("id not found", id); }
+            this.mredis.unwatch(function(err, reply) {
+                this.thoonk.lock.unlock();
+                if(callback) { callback("id not found", id); }
+            }.bind(this));
         } else {
             this.mredis.multi()
                 .hdel('feed:items:' + this.name, id)
@@ -387,7 +410,7 @@ function jobRetract(id, callback) {
                 .lrem('feed.ids:' + this.name, 1, id)
             .exec(function(err, reply) {
                 this.thoonk.lock.unlock();
-                if(!reply) {
+                if(err || !reply) {
                     process.nextTick(function() {
                         this.retact(id, callback);
                     }.bind(this));
