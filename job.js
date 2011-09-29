@@ -118,7 +118,7 @@ function jobPublish(item, callback, high_priority, id) {
     multi.exec(function(err, reply) {
         this.thoonk.lock.unlock();
         if(err || !reply) {
-            processnextTick(function() {
+            process.nextTick(function() {
                 this.publish(item, callback, high_priority, id);
             }.bind(this));
         } else if(callback) {
@@ -157,7 +157,7 @@ function jobGet(timeout, callback) {
             .exec(function(err, result) {
                 this.thoonk.lock.unlock();
                 if(err || !result) {
-                    processnextTick(function() {
+                    process.nextTick(function() {
                         this.get(timeout, callback);
                     }.bind(this));
                 } else if(callback) {
