@@ -79,17 +79,7 @@ function Feed(thoonk, name, config, type) {
 }
 
 function feedReady() {
-    this.lredis.once('idle', function() { 
-        this.emit('ready');
-    }.bind(this));
-    setTimeout(function() {
-        this.emit('ready');
-    }.bind(this), 100);
-    //this.lredis.subscribe("feed.publish:" + this.name);
-    //this.lredis.subscribe("feed.edit:" + this.name);
-    //this.lredis.subscribe("feed.retract:" + this.name);
-    //this.lredis.subscribe("feed.position:" + this.name);
-    //this.subscribed = true;
+    this.emit('ready');
 }
 
 /**
