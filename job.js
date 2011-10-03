@@ -200,6 +200,7 @@ function jobFinish(id, callback, setresult, timeout) {
             var multi = this.mredis.multi();
             multi.zrem("feed.claimed:" + this.name, id);
             multi.hdel("feed.cancelled:" + this.name, id);
+            multi.zrem("feed.published:" + this.name, id)
             if(setresult !== undefined) {
                 multi.lpush("feed.jobfinished:" + this.name + "\x00" + id, setresult);
                 if(timeout === undefined) {
