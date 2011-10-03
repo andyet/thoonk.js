@@ -76,6 +76,7 @@ function Job(thoonk, name, config) {
     this.bredis = redis.createClient(this.thoonk.port, this.thoonk.host);
     this.bredis.select(this.thoonk.db);
     this.publish = this.thoonk.lock.require(jobPublish, this);
+    this.put = this.thoonk.lock.require(jobPublish, this);
     //this.get = this.thoonk.lock.require(jobGet, this);
     this.finish = this.thoonk.lock.require(jobFinish, this);
     this.cancel = this.thoonk.lock.require(jobCancel, this);
@@ -422,8 +423,8 @@ function jobRetract(id, callback) {
     }.bind(this));
 }
 
-Job.super_ = Queue;
-Job.prototype = Object.create(Queue.prototype, {
+Job.super_ = Feed;
+Job.prototype = Object.create(Feed.prototype, {
     constructor: {
         value: Job,
         enumerable: false

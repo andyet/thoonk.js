@@ -73,9 +73,11 @@ function Feed(thoonk, name, config, type) {
         }.bind(this)
     );
 
-    this.publish = this.thoonk.lock.require(feedPublish, this);
-    this.edit = this.thoonk.lock.require(feedPublish, this);
-    this.retract = this.thoonk.lock.require(feedRetract, this);
+    if(type == 'feed') {
+        this.publish = this.thoonk.lock.require(feedPublish, this);
+        this.edit = this.thoonk.lock.require(feedPublish, this);
+        this.retract = this.thoonk.lock.require(feedRetract, this);
+    }
 }
 
 function feedReady() {
