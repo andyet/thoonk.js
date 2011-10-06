@@ -413,3 +413,5 @@ Thoonk.prototype.getFeedNames = function(callback, error_callback) {
 exports.createClient = function(host, port, db) {
     return new Thoonk(host, port, db);
 }
+
+exports.VERSION = '0.5.1';
