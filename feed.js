@@ -297,23 +297,27 @@ function feedGetAll(callback) {
  * Done Callback Arguments: None
  */
 function feedSubscribe(callbacks) {
+    var lastfeed = null;
     if(callbacks['publish']) {
         this.thoonk.on('publish:' + this.name, callbacks['publish']);
+        lastfeed = 'publish';
     }
     if(callbacks['edit']) {
         this.thoonk.on('edit:' + this.name, callbacks['edit']);
+        lastfeed = 'edit';
     }
     if(callbacks['retract']) {
         this.thoonk.on('retract:' + this.name, callbacks['retract']);
+        lastfeed = 'retract';
     }
     if(callbacks['position']) {
         this.thoonk.on('position:' + this.name, callbacks['position']);
+        lastfeed = 'position';
     }
     if(!this.subscribed) {
         if(callbacks.hasOwnProperty('done')) {
-            this.thoonk.once('subscribe:feed.position:' + this.name, callbacks.done);
+            this.thoonk.once('subscribe:feed.' + lastfeed + ':' + this.name, callbacks.done);
         }
-        this.lredis.once('idle', callbacks['done']);
         this.lredis.subscribe("feed.publish:" + this.name);
         this.lredis.subscribe("feed.edit:" + this.name);
         this.lredis.subscribe("feed.retract:" + this.name);
@@ -323,6 +327,36 @@ function feedSubscribe(callbacks) {
         if(callbacks.hasOwnProperty('done')) {
             callbacks.done();
         }
+    }
+}
+
+/**
+ * Unsubscribe from feed events.
+ *
+ * Object Property Arguments:
+ *     publish  -- Executed on an item publish event.
+ *     edit     -- Executed on an item edited event.
+ *     retract  -- Executed on an item removal event.
+ *     position -- Placeholder for sorted feed item placement.
+ *     done     -- Executed when subscription is completed.
+ *
+ * Done Callback Arguments: None
+ */
+function feedUnsubscribe(callbacks) {
+    if(callbacks['publish']) {
+        this.thoonk.removeListener('publish:' + this.name, callbacks['publish']);
+    }
+    if(callbacks['edit']) {
+        this.thoonk.removeListener('edit:' + this.name, callbacks['edit']);
+    }
+    if(callbacks['retract']) {
+        this.thoonk.removeListener('retract:' + this.name, callbacks['retract']);
+    }
+    if(callbacks['position']) {
+        this.thoonk.removeListener('position:' + this.name, callbacks['position']);
+    }
+    if(callbacks.done) {
+        callbacks.done();
     }
 }
 
@@ -377,6 +411,7 @@ Feed.prototype.getIds = feedGetIds;
 Feed.prototype.getItem = feedGetItem;
 Feed.prototype.getAll = feedGetAll;
 Feed.prototype.subscribe = feedSubscribe;
+Feed.prototype.unsubscribe = feedUnsubscribe;
 Feed.prototype.ready = feedReady;
 Feed.prototype.del = feedDelete;
 Feed.prototype.hasId = feedHasId;

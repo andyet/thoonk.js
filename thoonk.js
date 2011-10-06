@@ -42,6 +42,7 @@ var Thoonk = exports.Thoonk = function Thoonk(host, port, db) {
     this.lredis.on("message", this.handle_message.bind(this));
     this.lredis.on("pmessage", this.handle_pmessage.bind(this));
     this.lredis.on("subscribe", this.handle_subscribe.bind(this));
+    this.lredis.on("unsubscribe", this.handle_unsubscribe.bind(this));
     this.lredis.on("psubscribe", this.handle_psubscribe.bind(this));
     this.lredis.on("punsubscribe", this.handle_punsubscribe.bind(this));
 
@@ -139,6 +140,10 @@ Thoonk.prototype.handle_pmessage = function(pattern, channel, msg) {
 
 Thoonk.prototype.handle_subscribe = function(channel, count) {
     this.emit('subscribe:' + channel, count);
+};
+
+Thoonk.prototype.handle_unsubscribe = function(channel, count) {
+    this.emit('unsubscribe:' + channel, count);
 };
 
 Thoonk.prototype.handle_psubscribe = function(pattern, count) {
@@ -273,7 +278,6 @@ Thoonk.prototype.create = function(name, config) {
         } else {
             this.emit("ready:" + name);
         }
-        this.mredis.publish("newfeed", name + "\x00" + this.instance);
     }.bind(this));
 };
 
@@ -294,6 +298,9 @@ Thoonk.prototype.setConfig = function(feed, config, _newfeed) {
     }
     multi.exec(function(err, reply) {
         this.emit("ready:" + feed);
+        if(_newfeed) {
+            this.mredis.publish("newfeed", feed + "\x00" + this.instance);
+        }
         this.mredis.publish("conffeed", feed + "\x00" + this.instance);
     }.bind(this));
 };
