@@ -89,13 +89,16 @@ function Job(thoonk, name, config) {
  *     high_priority -- Optional bool indicating that the job
  *                      should be inserted to the beginning of the
  *                      queue. Defaults to false.
+ *     id            -- Optionally set the id of the job.
  * 
  * Callback Arguments:
  *     item  -- The contents of the job.
  *     id    -- The ID of the submitted job.
  */
-function jobPublish(item, callback, high_priority) {
-    var id = uuid();
+function jobPublish(item, callback, high_priority, id) {
+    if(id === undefined) {
+        var id = uuid();
+    }
     var multi = this.mredis.multi();
     if(high_priority === true) {
         multi.rpush("feed.ids:" + this.name, id);
@@ -332,6 +335,23 @@ function jobRetry(id, callback) {
 }
 
 /**
+ * Get the number of times the job has been cancelled.
+ *
+ * Arguments:
+ *     id       -- The ID of the job to check.
+ *     callback -- Called with result.
+ *
+ * Callback Arguments:
+ *     num   -- The number of times the job has been cancelled.
+ *     error -- A string description of the error.
+ */
+function jobGetNumOfFailures(id, callback) {
+    this.mredis.hget("feed.cancelled:" + this.name, id, function(err, result) {
+        callback(result, err);
+    });
+}
+
+/**
  * Delete a job from anywhere in the process.
  *
  * Arguments:
@@ -387,5 +407,6 @@ Job.prototype.cancel = jobCancel;
 Job.prototype.stall = jobStall;
 Job.prototype.retry = jobRetry;
 Job.prototype.retract = jobRetract;
+Job.prototype.getNumOfFailures = jobGetNumOfFailures;
 
 exports.Job = Job;

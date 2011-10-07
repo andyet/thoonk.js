@@ -162,6 +162,19 @@ function feedPublish(item, id, callback) {
 }
 
 /**
+ * Check feed for an id.
+ *
+ * Arguements:
+ *      id          -- The ID value to check for.
+ *      callback    -- Executed when answer is retrieved.
+ */
+function feedHasId(id, callback) {
+    this.mredis.hexists('feed.items:' + this.name, id, function(err, reply) {
+        callback(Boolean(reply));
+    });
+}
+
+/**
  * Remove an item from the feed.
  * 
  * Arguments:
@@ -191,8 +204,9 @@ function feedRetract(id, callback) {
                     }
                 }.bind(this));
             } else {
-                this.thoonk.lock.unlock();
-                this.mredis.unwatch();
+                this.mredis.unwatch(function(err, reply) {
+                    this.thoonk.lock.unlock();
+                });
                 callback(id, "Id does not exist.");
             }
         }.bind(this));
@@ -288,8 +302,13 @@ function feedSubscribe(callbacks) {
         this.lredis.subscribe("feed.retract:" + this.name);
         this.lredis.subscribe("feed.position:" + this.name);
         this.subscribed = true;
+        if(callbacks.hasOwnProperty('done')) {
+            this.thoonk.once('subscribe:' + this.name, callbacks.done);
+        }
     } else {
-        callbacks['done']();
+        if(callbacks.hasOwnProperty('done')) {
+            callbacks.done();
+        }
     }
 }
 
@@ -345,5 +364,6 @@ Feed.prototype.getAll = feedGetAll;
 Feed.prototype.subscribe = feedSubscribe;
 Feed.prototype.ready = feedReady;
 Feed.prototype.del = feedDelete;
+Feed.prototype.hasId = feedHasId;
 
 exports.Feed = Feed;
