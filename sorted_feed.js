@@ -33,6 +33,7 @@ function SortedFeed(thoonk, name, config) {
     this.publishInsert = this.thoonk.lock.require(sortedFeedPublishInsert, this);
     this.move = this.thoonk.lock.require(sortedFeedMove, this);
     this.retract = this.thoonk.lock.require(sortedFeedRetract, this);
+    this.getAll = this.thoonk.lock.require(sortedFeedGetAll, this);
 }
 
 /**
@@ -40,17 +41,19 @@ function SortedFeed(thoonk, name, config) {
  *
  * Arguments:
  *     item     -- The contents of the item to publish.
+ *     id       -- ignored, for the sake of consistency
  *     callback -- Executed on successful publication.
  *     prepend  -- If true, add the item to the start of the feed
  *                 instead of the end.
  *
  * Callback Arguments:
+ *     error
  *     item -- The contents of the published item.
  *     id   -- The generated ID of the published item.
  */
-function sortedFeedPublish(item, callback, prepend) {
+function sortedFeedPublish(item, id, callback, prepend) {
     this.mredis.incr('feed.idincr:' + this.name, function(err, reply) {
-        var id = reply;
+        if(!id) { id = reply; }
         var multi = this.mredis.multi();
         var relative;
         if(!prepend) {
@@ -66,7 +69,7 @@ function sortedFeedPublish(item, callback, prepend) {
         multi.publish('feed.position:' + this.name, id + '\x00' + relative);
         multi.exec(function(err, reply) {
             this.thoonk.lock.unlock();
-            if(callback) { callback(item, id); }
+            if(callback) { callback(null, item, id); }
         }.bind(this));
     }.bind(this));
 }
@@ -76,14 +79,16 @@ function sortedFeedPublish(item, callback, prepend) {
  *
  * Arguments:
  *     item     -- The contents of the item to publish.
+ *     id
  *     callback -- Executed on successful publication.
  *
  * Callback Arguments:
+ *     error
  *     item -- The contents of the published item.
  *     id   -- The generated ID of the published item.
  */
-function sortedFeedPrepend(item, callback) {
-    this.publish(item, callback, true);
+function sortedFeedPrepend(item, id, callback) {
+    this.publish(item, id, callback, true);
 }
 
 /**
@@ -95,31 +100,32 @@ function sortedFeedPrepend(item, callback) {
  *     callback -- Executed on successful modification.
  *
  * Callback Arguments:
+ *     error
  *     item -- The new contents of the item.
  *     id   -- The ID of the item.
  */
-function sortedFeedEdit(id, item, callback) {
+function sortedFeedEdit(item, id, callback) {
     this.mredis.watch('feed.items:' + this.name, function(err, reply) {
         this.mredis.hexists('feed.items:' + this.name, id, function(err, reply) {
             if(!reply) {
                 this.mredis.unwatch(function(err, reply) {
                     this.thoonk.lock.unlock();
-                    if(callback) { callback('DoesNotExist', id, item); }
+                    if(callback) { callback('DoesNotExist', item, id); }
                 }.bind(this));
                 return;
             }
             this.mredis.multi()
                 .hset('feed.items:' + this.name, id, item)
                 .incr('feed.publishes:' + this.name)
-                .publish('feed.publish:' + this.name, id + '\x00' + item)
+                .publish('feed.edit:' + this.name, id + '\x00' + item)
             .exec(function(err, reply) {
                 this.thoonk.lock.unlock();
                 if(!reply) {
                     process.nextTick(function() {
-                        this.edit(id, item, callback);
+                        this.edit(item, id, callback);
                     }.bind(this));
                 } else {
-                    if(callback) { callback(item, id); }
+                    if(callback) { callback(null, item, id); }
                 }
             }.bind(this));
         }.bind(this));
@@ -141,6 +147,7 @@ function sortedFeedEdit(id, item, callback) {
  *                  to rel_id.
  *
  * Callback Arguments:
+ *     error 
  *     item -- The content of the published item.
  *     id   -- The generated ID of the item.
  */
@@ -155,29 +162,29 @@ function sortedFeedPublishInsert(item, rel_id, callback, placement) {
             if(!reply) {
                 this.mredis.unwatch(function(err, reply) {
                     this.thoonk.lock.unlock();
-                    if(callback) { callback('DoesNotExist', id, item); }
+                    if(callback) { callback('DoesNotExist', item, rel_id); }
                 }.bind(this));
-                return;
+            } else {
+                this.mredis.incr('feed.idincr:' + this.name, function(err, reply) {
+                    var id = reply;
+                    this.mredis.multi()
+                        .linsert('feed.ids:' + this.name, placement, rel_id, id)
+                        .hset('feed.items:' + this.name, id, item)
+                        .incr('feed.publishes:' + this.name)
+                        .publish('feed.publish:' + this.name, id + '\x00' + item)
+                        .publish('feed.position:' + this.name, id + '\x00' + posUpdate)
+                    .exec(function(err, reply) {
+                        this.thoonk.lock.unlock();
+                        if(!reply) {
+                            process.nexttick(function() {
+                                this.publishInsert(item, rel_id, callback, placement);
+                            }.bind(this));
+                        } else {
+                            if(callback) { callback(null, item, id); }
+                        }
+                    }.bind(this));
+                }.bind(this));
             }
-            this.mredis.incr('feed.idincr:' + this.name, function(err, reply) {
-                var id = reply;
-                this.mredis.multi()
-                    .linsert('feed.ids:' + this.name, placement, rel_id, id)
-                    .hset('feed.items:' + this.name, id, item)
-                    .incr('feed.publishes:' + this.name)
-                    .publish('feed.publish:' + this.name, id + '\x00' + item)
-                    .publish('feed.position:' + this.name, id + '\x00' + posUpdate)
-                .exec(function(err, reply) {
-                    this.thoonk.lock.unlock();
-                    if(!reply) {
-                        process.nexttick(function() {
-                            this.publishInsert(item, rel_id, callback, placement);
-                        }.bind(this));
-                    } else {
-                        if(callback) { callback(item, id); }
-                    }
-                }.bind(this));
-            }.bind(this));
         }.bind(this));
     }.bind(this));
 }
@@ -191,6 +198,7 @@ function sortedFeedPublishInsert(item, rel_id, callback, placement) {
  *     callback  -- Executed on successful publish.
  *
  * Callback Arguments:
+ *     error
  *     item -- The content of the published item.
  *     id   -- The generated ID of the item.
  */
@@ -207,6 +215,7 @@ function sortedFeedPublishBefore(item, before_id, callback) {
  *     callback  -- Executed on successful publish.
  *
  * Callback Arguments:
+ *     error
  *     item -- The content of the published item.
  *     id   -- The generated ID of the item.
  */
@@ -258,40 +267,39 @@ function sortedFeedMove(id, relative_id, placement, callback) {
             if(!reply) {
                 this.mredis.unwatch(function(err, reply) {
                     this.thoonk.lock.unlock();
-                    if(callback) { callback('DoesNotExist', relative_id); }
+                    if(callback) { callback('DoesNotExist', relative_id, placement); }
                 }.bind(this));
-                return;
-            }
-            this.mredis.hexists('feed.items:' + this.name, id, function(err, reply) {
-                if(!reply) {
-                    this.mredis.unwatch(function(err, reply) {
-                        this.thoonk.lock.unlock();
-                        if(callback) { callback('DoesNotExist', id, placement); }
-                    }.bind(this));
-                    return;
-                } else {
-                    var multi = this.mredis.multi();
-                    multi.lrem('feed.ids:' + this.name, 1, id);
-                    if(placement == 'BEFORE' || placement == 'AFTER') {
-                        multi.linsert('feed.ids:' + this.name, placement, relative_id, id);
-                    } else if (placement == 'BEGIN') {
-                        multi.lpush('feed.ids:' + this.name, id);
-                    } else if (placement == 'END') {
-                        multi.rpush('feed.ids:' + this.name, id);
-                    }
-                    multi.publish('feed.position:' + this.name, id + '\x00' + relative);
-                    multi.exec(function(err, reply) {
-                        this.thoonk.lock.unlock();
-                        if(!reply) {
-                            process.nexttick(function() {
-                                this.publishInsert(item, before_id, callback, placement);
-                            }.bind(this));
-                        } else {
-                            if(callback) { callback(null, id, relative); }
+            } else {
+                this.mredis.hexists('feed.items:' + this.name, id, function(err, reply) {
+                    if(!reply) {
+                        this.mredis.unwatch(function(err, reply) {
+                            this.thoonk.lock.unlock();
+                            if(callback) { callback('DoesNotExist', id, placement); }
+                        }.bind(this));
+                    } else {
+                        var multi = this.mredis.multi();
+                        multi.lrem('feed.ids:' + this.name, 1, id);
+                        if(placement == 'BEFORE' || placement == 'AFTER') {
+                            multi.linsert('feed.ids:' + this.name, placement, relative_id, id);
+                        } else if (placement == 'BEGIN') {
+                            multi.lpush('feed.ids:' + this.name, id);
+                        } else if (placement == 'END') {
+                            multi.rpush('feed.ids:' + this.name, id);
                         }
-                    }.bind(this));
-                }
-            }.bind(this));
+                        multi.publish('feed.position:' + this.name, id + '\x00' + relative);
+                        multi.exec(function(err, reply) {
+                            this.thoonk.lock.unlock();
+                            if(!reply) {
+                                process.nexttick(function() {
+                                    this.publishInsert(item, before_id, callback, placement);
+                                }.bind(this));
+                            } else {
+                                if(callback) { callback(null, id, relative); }
+                            }
+                        }.bind(this));
+                    }
+                }.bind(this));
+            }
         }.bind(this));
     }.bind(this));
 
@@ -307,7 +315,8 @@ function sortedFeedMove(id, relative_id, placement, callback) {
  *
  * Callback Arguments:
  *     error -- A string or null.
- *     reply -- The Redis reply object.
+ *     id
+ *     placement
  */
 function sortedFeedMoveBefore(id, relative_id, callback) {
     this.move(id, relative_id, 'BEFORE', callback);
@@ -339,7 +348,8 @@ function sortedFeedMoveAfter(id, relative_id, callback) {
  *
  * Callback Arguments:
  *     error -- A string or null.
- *     reply -- The Redis reply object.
+ *     id
+ *     placement
  *
  */
 function sortedFeedMoveBegin(id, callback) {
@@ -355,7 +365,8 @@ function sortedFeedMoveBegin(id, callback) {
  *
  * Callback Arguments:
  *     error -- A string or null.
- *     reply -- The Redis reply object.
+ *     id
+ *     placement
  */
 function sortedFeedMoveEnd(id, callback) {
     this.move(id, null, 'END', callback);
@@ -369,8 +380,8 @@ function sortedFeedMoveEnd(id, callback) {
  *     callback -- Executed on successful retraction.
  *
  * Callback Arguments:
+ *     error -- A string or null.
  *     id -- ID of the removed item. 
- *     err_msg -- A string or null.
  */
 function sortedFeedRetract(id, callback) {
     this.mredis.watch('feed.items:' + this.name, function(err, reply) {
@@ -378,7 +389,7 @@ function sortedFeedRetract(id, callback) {
             if(!reply) {
                 this.mredis.unwatch(function(err, reply) {
                     this.thoonk.lock.unlock();
-                    if(callback) { callback(id, 'Does not exist'); }
+                    if(callback) { callback('DoesNotExist', id); }
                 }.bind(this));
                 return;
             }
@@ -393,7 +404,7 @@ function sortedFeedRetract(id, callback) {
                         this.retract(id, callback);
                     }.bind(this));
                 } else {
-                    if(callback) { callback(id, null); }
+                    if(callback) { callback(null, id); }
                 }
             }.bind(this));
         }.bind(this));
@@ -441,11 +452,26 @@ function sortedFeedGetItem(id, callback) {
  *
  * Callback Arguments:
  *     error -- A string or null.
- *     reply -- The Redis reply object.
+ *     reply -- A list of {id, item} lists.
  */
 function sortedFeedGetAll(callback) {
-    this.mredis.hgetall('feed.items:' + this.name, function(err, reply) {
-        callback(err, reply);
+    var multi = this.mredis.multi();
+    multi.lrange('feed.ids:' + this.name, 0, -1);
+    multi.hgetall('feed.items:' + this.name);
+    multi.exec(function(err, reply) {
+        var ids, items;
+        ids = reply[0];
+        items = reply[1];
+        var answers =[];
+        for(var idx in ids) {
+            answers.push({id: ids[idx], item: items[ids[idx]]});
+        }
+        if(err) {
+            callback(err, null);
+        } else {
+            callback(null, answers);
+        }
+        this.thoonk.lock.unlock();
     }.bind(this));
 }
 
@@ -471,5 +497,6 @@ SortedFeed.prototype.moveAfter = sortedFeedMoveAfter;
 SortedFeed.prototype.moveBefore = sortedFeedMoveBefore;
 SortedFeed.prototype.moveBegin = sortedFeedMoveBegin;
 SortedFeed.prototype.moveEnd = sortedFeedMoveEnd;
+SortedFeed.prototype.getAll = sortedFeedGetAll;
 
 exports.SortedFeed = SortedFeed;

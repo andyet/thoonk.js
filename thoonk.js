@@ -25,14 +25,15 @@ var Thoonk = exports.Thoonk = function Thoonk(host, port, db) {
     host || (host = "127.0.0.1");
     port || (port = 6379);
     db || (db = 0);
+    this.host = host;
+    this.port = port;
+    this.db = db;
     EventEmitter.call(this);
     this.lredis = redis.createClient(port, host);
     this.lredis.select(db);
     this.lredis.subscribe("newfeed", "delfeed", "conffeed");
     this.mredis = redis.createClient(port, host);
     this.mredis.select(db);
-    this.bredis = redis.createClient(port, host);
-    this.bredis.select(db);
     this.lock = new padlock.Padlock();
 
     this.instance = uuid();
@@ -41,9 +42,11 @@ var Thoonk = exports.Thoonk = function Thoonk(host, port, db) {
     this.lredis.on("message", this.handle_message.bind(this));
     this.lredis.on("pmessage", this.handle_pmessage.bind(this));
     this.lredis.on("subscribe", this.handle_subscribe.bind(this));
+    this.lredis.on("unsubscribe", this.handle_unsubscribe.bind(this));
     this.lredis.on("psubscribe", this.handle_psubscribe.bind(this));
+    this.lredis.on("punsubscribe", this.handle_punsubscribe.bind(this));
 
-    this.feeds = {};
+    this.subscribepatterns = {};
 
     this.mredis.on("error", function(error) {
         console.log("Error " + error);
@@ -65,25 +68,15 @@ Thoonk.prototype.handle_message = function(channel, msg) {
     if(channel == "newfeed") {
         //feed, instance
         args = msg.split('\x00');
-        if(args[1] != this.instance) {
-            //this.feeds[args[0]] = null;
-            this.update_config(args[0]);
-        }
         this.emit('create', args[0]);
     } else if (channel == "delfeed") {
         //feed instance
         args = msg.split('\x00');
-        if(args[1] != this.instance) {
-            delete this.feeds[args[0]];
-        }
         this.emit('delete', args[0]);
     } else if (channel == "conffeed") {
         //feed instance
         args = msg.split('\x00');
-        if(args[1] != this.instance) {
-            //this.feeds[args[0]] = null;
-            this.update_config(args[0]);
-        }
+        this.emit('config:' + args[0]);
     } else if (channel.substring(0, 13) == 'feed.publish:') {
         //id, event
         args = msg.split('\x00');
@@ -149,8 +142,16 @@ Thoonk.prototype.handle_subscribe = function(channel, count) {
     this.emit('subscribe:' + channel, count);
 };
 
+Thoonk.prototype.handle_unsubscribe = function(channel, count) {
+    this.emit('unsubscribe:' + channel, count);
+};
+
 Thoonk.prototype.handle_psubscribe = function(pattern, count) {
     this.emit('psubscribe:' + pattern, count);
+};
+
+Thoonk.prototype.handle_punsubscribe = function(pattern, count) {
+    this.emit('punsubscribe:' + pattern, count);
 };
 
 /**
@@ -180,27 +181,79 @@ Thoonk.prototype.handle_psubscribe = function(pattern, count) {
  *
  * Done Callback Arguments: None
  */
-Thoonk.prototype.namespaceSubscribe = function(patthern, callbacks) {
+Thoonk.prototype.namespaceSubscribe = function(pattern, callbacks) {
     if(callbacks['publish']) {
-        this.thoonk.on('ns.publish:' + pattern, callbacks['publish']);
+        this.on('ns.publish:' + 'feed.publish:' + pattern, callbacks['publish']);
     }
     if(callbacks['edit']) {
-        this.thoonk.on('ns.edit:' + pattern, callbacks['edit']);
+        this.on('ns.edit:' + 'feed.edit:' + pattern, callbacks['edit']);
     }
     if(callbacks['retract']) {
-        this.thoonk.on('ns.retract:' + pattern, callbacks['retract']);
+        this.on('ns.retract:' + 'feed.retract:' + pattern, callbacks['retract']);
     }
     if(callbacks['position']) {
-        this.thoonk.on('ns.position:' + pattern, callbacks['position']);
+        this.on('ns.position:' + 'feed.position:' + pattern, callbacks['position']);
     }
-    this.lredis.psubscribe("feed.publish:" + pattern);
-    this.lredis.psubscribe("feed.edit:" + pattern);
-    this.lredis.psubscribe("feed.retract:" + pattern);
-    this.lredis.psubscribe("feed.position:" + pattern);
+    if(!this.subscribepatterns.hasOwnProperty(pattern)) {
+        this.lredis.psubscribe("feed.publish:" + pattern);
+        this.lredis.psubscribe("feed.edit:" + pattern);
+        this.lredis.psubscribe("feed.retract:" + pattern);
+        this.lredis.psubscribe("feed.position:" + pattern);
+        this.subscribepatterns[pattern] = 0;
+    }
+    this.subscribepatterns[pattern]++;
     if(callbacks.hasOwnProperty('done')) {
-        this.thoonk.once('psubscribe:' + pattern, callbacks.done);
+        this.once('psubscribe:feed.position:' + pattern, callbacks.done);
     }
 }
+
+/**
+ * Unsubscribe from pattern events.
+ *
+ * Object Property Arguments:
+ *     publish  -- Executed on an item publish event.
+ *     edit     -- Executed on an item edited event.
+ *     retract  -- Executed on an item removal event.
+ *     position -- Placeholder for sorted feed item placement.
+ *     done     -- Executed when subscription is completed.
+ *
+ * Done Callback Arguments: None
+ *
+ *  pattern
+ *  callbacks
+ *
+ */
+Thoonk.prototype.namespaceUnsubscribe = function(pattern, callbacks) {
+    if(this.subscribepatterns.hasOwnProperty(pattern)) {
+        this.subscribepatterns[pattern]--;
+        if(callbacks['publish']) {
+            this.removeListener('ns.publish:' + 'feed.publish:' + pattern, callbacks['publish']);
+        }
+        if(callbacks['edit']) {
+            this.removeListener('ns.edit:' + 'feed.edit:' + pattern, callbacks['edit']);
+        }
+        if(callbacks['retract']) {
+            this.removeListener('ns.retract:' + 'feed.retract:' + pattern, callbacks['retract']);
+        }
+        if(callbacks['position']) {
+            this.removeListener('ns.position:' + 'feed.position:' + pattern, callbacks['position']);
+        }
+        if(this.subscribepatterns[pattern] == 0) {
+            delete this.subscribepatterns[pattern];
+            this.lredis.punsubscribe("feed.publish:" + pattern);
+            this.lredis.punsubscribe("feed.edit:" + pattern);
+            this.lredis.punsubscribe("feed.retract:" + pattern);
+            this.lredis.punsubscribe("feed.position:" + pattern);
+        }
+        if(callbacks.hasOwnProperty('done')) {
+            this.once('punsubscribe:feed.position:' + pattern, callbacks.done);
+        }
+    } else {
+        if(callbacks.hasOwnProperty('done')) {
+            callbacks.done();
+        }
+    }
+};
 
 /**
  * Create a new feed. A feed is a subject that you can publish items to
@@ -225,7 +278,6 @@ Thoonk.prototype.create = function(name, config) {
         } else {
             this.emit("ready:" + name);
         }
-        this.mredis.publish("newfeed", name + "\x00" + this.instance);
     }.bind(this));
 };
 
@@ -238,30 +290,21 @@ Thoonk.prototype.create = function(name, config) {
  */
 Thoonk.prototype.setConfig = function(feed, config, _newfeed) {
     if(!config.hasOwnProperty('type')) {
-        config['type'] = 'feed';
+        config.type = 'feed';
     }
-    this.mredis.set("feed.config:" + feed, JSON.stringify(config));
-    this.feeds[feed] = config;
-    this.emit("ready:" + feed);
-    if(!_newfeed) {
-        this.mredis.publish("conffeed", feed + "\x00" + this.instance);
+    var multi = this.mredis.multi();
+    for(var key in config) {
+        multi.hset('feed.config:' + feed, key, config[key]);
     }
-};
-
-/**
- * Retrieve the configuration of the feed from storage and update in memory. 
- * 
- * @param feed The feed name
- * @param callback
- */
-Thoonk.prototype.update_config = function(feed, callback) {
-    this.mredis.get("feed.config:" + feed, function(err, reply) {
-        this.feeds[feed] = JSON.parse(reply);
-        if(callback) {
-           callback(this.feeds[feed]);
+    multi.exec(function(err, reply) {
+        this.emit("ready:" + feed);
+        if(_newfeed) {
+            this.mredis.publish("newfeed", feed + "\x00" + this.instance);
         }
+        this.mredis.publish("conffeed", feed + "\x00" + this.instance);
     }.bind(this));
 };
+
 
 /**
  * Whether a feed exists or not.
@@ -271,10 +314,8 @@ Thoonk.prototype.update_config = function(feed, callback) {
  * @param doesnt_callback Callback if it doesn't exist
  */
 Thoonk.prototype.exists = function(feed, exists_callback, doesnt_callback) {
-    if(this.feeds.hasOwnProperty(feed)) exists_callback(true);
     this.mredis.sismember("feeds", feed, function(error, reply) {
         if(reply) {
-            if(!this.feeds.hasOwnProperty(feed)) { this.update_config(feed); } 
             exists_callback(reply);
         } else {
             doesnt_callback(reply);
@@ -322,13 +363,31 @@ Thoonk.prototype.job = function(name, config) {
     return new Job(this, name, config);
 };
 
+Thoonk.prototype.loadFeed = function(name, callback) {
+    this.mredis.hget('feed.config:' + name, 'type', function(err, reply) {
+        if(err) {
+            callback("not found");
+        } else {
+            if(reply == 'feed') {
+                callback(null, this.feed(name));
+            } else if(reply == 'sorted_feed') {
+                callback(null, this.sortedFeed(name));
+            } else if(reply == 'job') {
+                callback(null, this.job(name));
+            } else {
+                callback("unknown type: " + reply);
+            }
+        }
+    }.bind(this));
+};
+
 /**
  * Disconnect from the server.
  */
 Thoonk.prototype.quit = function() {
     this.mredis.quit();
     this.lredis.quit();
-    this.bredis.quit();
+    this.emit('quit');
 };
 
 /**
@@ -354,3 +413,5 @@ Thoonk.prototype.getFeedNames = function(callback, error_callback) {
 exports.createClient = function(host, port, db) {
     return new Thoonk(host, port, db);
 }
+
+exports.VERSION = '0.5.1';

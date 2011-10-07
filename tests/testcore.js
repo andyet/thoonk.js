@@ -3,6 +3,7 @@ var fs = require('fs');
 var checkmark = '\033[1;32m.\033[0m';
 var failmark = '\033[1;31mx\033[0m';
 var failcolor = '\033[1;31m';
+var assert = require('assert');
 
 function LoadConfig(callback) {
     fs.readFile('testconfig.json', 'utf-8', function(err, data) {
@@ -53,19 +54,10 @@ function TestObject(should_events, start_function) {
 
     this.compare = function(item1, item2) {
         var pass = true;
-        for(key in item1) {
-            if(item1[key] != item2[key]) {
-                pass = false;
-                break;
-            }
-        }
-        if(pass) {
-            for(key in item2) {
-                if(item2[key] != item1[key]) {
-                    pass = false;
-                    break
-                }
-            }
+        try {
+            assert.deepEqual(item1, item2);
+        } catch(err) {
+            pass = false;
         }
         if(pass) {
             process.stdout.write(checkmark);

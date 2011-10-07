@@ -17,6 +17,7 @@ var tests = new TestObject([
     "position:4 :end",
     "position:5 :end",
     "position:6 :end",
+    'edit:6: neehawedit',
 ], function(config) {
     var thoonk = new Thoonk(config.host, config.port, config.db);
     tests.on("done", function() {
@@ -31,7 +32,7 @@ var tests = new TestObject([
                 tests.should("publish:" + id + ": " + msg);
             },
             edit: function(feed, id, msg) {
-                console.log("updated");
+                tests.should('edit:' + id + ': ' + msg);
             },
             retract: function(feed, id) {
                 tests.should("retract:" + id);
@@ -45,12 +46,13 @@ var tests = new TestObject([
                 testfeed.publish("neehaw3");
                 testfeed.publish("neehaw4");
                 testfeed.publish("neehaw5");
-                testfeed.publish("neehaw6", function() {
+                testfeed.publish("neehaw6", null, function(err, item, id) {
+                    testfeed.edit('neehawedit', id);
                     testfeed.getIds(function(err, ids) {
                         tests.should("ids:" + ids.join(','));
                     });
                     testfeed.getAll(function(err, all) {
-                        var other = {'1': 'neehaw', '2': 'neehaw2', '3': "neehaw3", '4': "neehaw4", '5': "neehaw5", '6': "neehaw6"};
+                        var other = [{id: '1', item: 'neehaw'}, {id: '2', item: 'neehaw2'}, {id: '3', item: "neehaw3"}, {id: '4', item:"neehaw4"}, {id:'5', item:"neehaw5"}, {id: '6', item:"neehawedit"}];
                         tests.compare(all, other);
                         testfeed.moveEnd("1", function(err_msg, id, placement) {
                             testfeed.getIds(function(err, ids) {

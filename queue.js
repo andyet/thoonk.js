@@ -31,9 +31,14 @@ var Feed = require("./feed.js").Feed,
  */
 function Queue(thoonk, name, config) {
     Feed.call(this, thoonk, name, config, 'queue');
+    this.bredis = redis.createClient(this.thoonk.port, this.thoonk.host);
+    this.bredis.select(this.thoonk.db);
     this.publish = this.thoonk.lock.require(queuePublish, this);
     this.put = this.thoonk.lock.require(queuePublish, this);
     this.get = this.thoonk.lock.require(queueGet, this);
+    this.thoonk.on('quit', function() {
+        this.bredis.quit();
+    }.bind(this));
 }
 
 /**
@@ -66,7 +71,7 @@ function queuePublish(item, callback, priority) {
         this.thoonk.lock.unlock();
         if(!replies) {
             process.nextTick(function() {
-                this.put(item, priority, callback);
+                this.put(item, callback, priority);
             }.bind(this));
         } else {
             if(callback) { callback(item, id); }

@@ -1,0 +1,54 @@
+<html>
+<head>
+<script src='/socket.io/socket.io.js'></script>
+<script src="http://code.jquery.com/jquery-latest.js"></script>
+<script type="text/javascript" src="jquery.sparkline.js"></script>
+<script>
+    var socket = io.connect('http://localhost:8001');
+
+    var publishvalues = [];
+    var finishvalues = [];
+
+    socket.on('connect', function () {
+        console.log('weeee');
+        socket.on('message', function (obj) {
+            console.log(obj);
+            $('#status').html('<p>' + obj.id + ' ' + obj.available + '</p>');
+            publishvalues.push(obj.publishes);
+            if(publishvalues.length > 99) {
+                publishvalues.shift();
+            }
+            finishvalues.push(obj.finishes);
+            if(finishvalues.length > 99) {
+                finishvalues.shift();
+            }
+            //$('.dynamicsparkline').sparkline(values, {chartRangeMin: 0, chartRangeMax: 5000, height: '100px'});
+            $('.availabletext').html('Available: ' + obj.available);
+            $('.availablebar').sparkline([obj.available, (2000000 - obj.available)], {type:'pie', chartRangeMin:0, chartRangeMax:2000000});
+            $('.publishestext').html('Publishes: ' + obj.publishes + '/sec');
+            console.log(publishvalues);
+            console.log(finishvalues);
+            $('.publishesline').sparkline(publishvalues, {type:'line'});
+            $('.finishestext').html('Finishes: ' + obj.finishes + '/sec');
+            $('.finishesline').sparkline(finishvalues);
+            //socket.emit('msg', confirm('What is your message?'));
+        });
+    });
+</script>
+</head>
+<body>
+<div id='status'></div>
+<div id='available'>
+    <span class="availabletext">Loading..</span>
+    <span class="availablebar">Loading..</span>
+</div>
+<div id='publishes'>
+    <span class='publishestext'>Loading...</span>
+    <span class='publishesline'>Loading...</span>
+</div>
+<div id='finishes'>
+    <span class='finishestext'>Loading...</span>
+    <span class='finishesline'>Loading...</span>
+</div>
+</body>
+</html>
