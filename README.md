@@ -49,8 +49,6 @@ of outages, and keeping long running tasks away from synchronous interfaces.
 
 # Installation #
 
-In theory, if I publish the package correctly, then this should work.
-
     npm install thoonk
 
 
@@ -69,6 +67,10 @@ configured. Then run:
 
     var Thoonk = require("thoonk").Thoonk;
     var thoonk = new Thoonk(host, port, db)
+
+Or, you can use:
+
+    var thoonk = require("thoonk").createClient(host, port, db);
 
 ## Creating a Feed ##
 
