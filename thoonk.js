@@ -86,6 +86,10 @@ Thoonk.prototype.handle_message = function(channel, msg) {
 
         //publish: id, payload
         this.emit('publish:' + chans[1], chans[1], args[0], args[1]);
+    } else if (channel.substring(0,11) == 'job.finish:') {
+        var chans = channel.split(":");
+        args = msg.split('\x00');
+        this.emit('job.finish:' + chans[1], chans[1], args[0], args[1]);
     } else if (channel.substring(0, 10) == 'feed.edit:') {
         //id, event
         args = msg.split('\x00');

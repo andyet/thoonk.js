@@ -220,8 +220,7 @@ Job:
             HDEL feed.cancelled:[feed] [id] //just to make sure
             INCR feed.finishes:[feed]
             //optionally if publishing a result:
-                LPUSH feed.jobfinished:[feed]\x00[id] [result]
-                EXPIRE feed.jobfinished:[feed]\x00[id] [timeout]
+                PUBLISH job.finish:[feed] [id]\x00[result]
             HDEL feed.items:[feed] [id]
         EXEC // if nil: go back to WATCH and try again
 

@@ -45,9 +45,11 @@ var tests = new TestObject([
             tests.add("stall: " + id);
             tests.add("job: " + id);
             tests.add("finish: " + id);
+            tests.add("finished:" + id);
+        }, null, null, function(err, feed, id, result) {
+            tests.should('finished:' + id);
         });
         testjob.get(0, function(err, item, id) {
-            //console.log('stalling', id);
             tests.should("stall: " + id);
             testjob.stall(id, function(err_msg, id) {
                 tests.test(!err_msg, err_msg);
@@ -58,7 +60,7 @@ var tests = new TestObject([
                         testjob.finish(id, function(err_msg, id) {
                             tests.test(!err_msg, err_msg);
                             tests.should("finish: " + id);
-                        });
+                        }, "weee");
                     });
                 });
             });

@@ -82,30 +82,47 @@ function Job(thoonk, name, config) {
     this.cancel = this.thoonk.lock.require(jobCancel, this);
     this.stall = this.thoonk.lock.require(jobStall, this);
     this.retry = this.thoonk.lock.require(jobRetry, this);
+
+    this.thoonk.on('job.finish:' + this.name, function(feed, id, result) {
+        this.emit('job.id.finish:' + id, null, feed, id, result);
+    }.bind(this));
+
     this.thoonk.on('quit', function() {
         this.bredis.quit();
     }.bind(this));
+}
+
+//override feedReady to wait until we're subscribed to the job.finish channel
+function jobReady() {
+    this.thoonk.once('subscribe:' + 'job.finish:' + this.name, function() {
+        this.emit("ready");
+    }.bind(this));
+    this.lredis.subscribe('job.finish:' + this.name);
 }
 
 /**
  * Add a new job to the queue.
  *
  * Arguments:
- *     item          -- The contents of the job request.
- *     callback      -- Executed on successful submission of the job.
- *     high_priority -- Optional bool indicating that the job
+ *     item            -- The contents of the job request.
+ *     callback        -- Executed on successful submission of the job.
+ *     high_priority   -- Optional bool indicating that the job
  *                      should be inserted to the beginning of the
  *                      queue. Defaults to false.
- *     id            -- Optionally set the id of the job.
+ *     id              -- Optionally set the id of the job.
+ *     finish_callback -- Optional callback (feed, id, result) for published job
  * 
  * Callback Arguments:
  *     error
  *     item  -- The contents of the job.
  *     id    -- The ID of the submitted job.
  */
-function jobPublish(item, callback, high_priority, id) {
-    if(id === undefined) {
+function jobPublish(item, callback, high_priority, id, finish_callback) {
+    if(id === undefined || id === null) {
         var id = uuid();
+    }
+    if(finish_callback) {
+        this.once('job.id.finish:' + id, finish_callback);
     }
     var multi = this.mredis.multi();
     if(high_priority === true) {
@@ -179,14 +196,12 @@ function jobGet(timeout, callback) {
  *     id        -- The ID of the job to finish.
  *     callback  -- Executes 
  *     setresult -- Optional result data from the job.
- *     timeout   -- Optional time in seconds to keep result data.
- *                  Defaults to indefinitely.
  *
  * Callback Arguments:
  *     error -- Boolean indicating that an error occurred.
  *     id    -- The ID of the finished job.
  */
-function jobFinish(id, callback, setresult, timeout) {
+function jobFinish(id, callback, setresult) {
     this.mredis.watch("feed.claimed:" + this.name);
     this.mredis.zrank("feed.claimed:" + this.name, id, function(err, result) {
         if(result == null) {
@@ -203,11 +218,7 @@ function jobFinish(id, callback, setresult, timeout) {
             multi.zrem("feed.published:" + this.name, id);
             multi.incr('feed.finishes:' + this.name);
             if(setresult !== undefined) {
-                multi.lpush("feed.jobfinished:" + this.name + "\x00" + id, setresult);
-                if(timeout === undefined) {
-                    timeout = 0;
-                }
-                multi.expire("feed.jobfinished:" + this.name + "\x00" + id, timeout);
+                multi.publish('job.finish:' + this.name, id + '\x00' + setresult);
             }
             multi.hdel("feed.items:" + this.name, id);
             multi.exec(function(err, reply) {
@@ -223,31 +234,6 @@ function jobFinish(id, callback, setresult, timeout) {
                     }
                 }
             }.bind(this));
-        }
-    }.bind(this));
-}
-
-/**
- * Retrieve the result of a given job.
- *
- * Arguments:
- *     id       -- The ID of the job to check for results.
- *     timeout  -- Time in seconds to wait for results to arrive.
- *                 Default is to block indefinitely.
- *     callback -- Executed once an error occurs or the results arrive.
- *
- * Callback Arguments:
- *     error
- *     id       -- The ID of the job.
- *     reply    -- The result.
- *     timedout -- Flag indicating that the request had timed out.
- */
-function jobGetResult(id, timeout, callback) {
-    this.mredis.blpop("feed.jobfinished:" + this.name + "\x00" + id, timeout, function(err, result) {
-        if(err) {
-            callback('timeout', id, result, true);
-        } else {
-            callback(null, id, result, false);
         }
     }.bind(this));
 }
@@ -437,11 +423,11 @@ Job.prototype.put = jobPublish;
 Job.prototype.publish = jobPublish;
 Job.prototype.get = jobGet;
 Job.prototype.finish = jobFinish;
-Job.prototype.getResult = jobGetResult;
 Job.prototype.cancel = jobCancel;
 Job.prototype.stall = jobStall;
 Job.prototype.retry = jobRetry;
 Job.prototype.retract = jobRetract;
 Job.prototype.getNumOfFailures = jobGetNumOfFailures;
+Job.prototype.ready = jobReady;
 
 exports.Job = Job;
