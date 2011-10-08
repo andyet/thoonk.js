@@ -224,9 +224,6 @@ Job:
             HDEL feed.items:[feed] [id]
         EXEC // if nil: go back to WATCH and try again
 
-    Get Result:
-        BRPOP feed:jobfinished:[feed]\x00[id] [timeout]
-
     Get Ids:
         HKEYS feed.items:[feed]
 

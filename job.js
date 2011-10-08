@@ -88,8 +88,8 @@ function Job(thoonk, name, config) {
     }.bind(this));
 
     this.thoonk.on('quit', function() {
-        this.bredis.quit();
         this.lredis.unsubscribe('job.finish:' + this.name);
+        this.bredis.quit();
     }.bind(this));
 }
 
