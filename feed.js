@@ -360,6 +360,95 @@ function feedUnsubscribe(callbacks) {
     }
 }
 
+/**
+ * Subscribe to receive events from the feed.
+ *
+ * Events:
+ *     publishes
+ *     edits
+ *     retractions
+ *
+ * Object Property Arguments:
+ *     publish  -- Executed on an item publish event.
+ *     edit     -- Executed on an item edited event.
+ *     retract  -- Executed on an item removal event.
+ *     position -- Placeholder for sorted feed item placement.
+ *     done     -- Executed when subscription is completed.
+ *
+ * Publish and Edit Callback Arguments:
+ *     name -- The name of the feed that changed.
+ *     id   -- The ID of the published or edited item.
+ *     item -- The content of the published or edited item.
+ *     
+ * Retract Callback Arguments:
+ *     name -- The name of the feed that changed.
+ *     id   -- The ID of the retracted item.
+ *
+ * Done Callback Arguments: None
+ */
+function feedSubscribeId(id, callbacks) {
+    var lastfeed = null;
+    if(callbacks['publish']) {
+        this.thoonk.on('publish.id:' + this.name + ':' + id, callbacks['publish']);
+        lastfeed = 'publish';
+    }
+    if(callbacks['edit']) {
+        this.thoonk.on('edit.id:' + this.name + ':' + id, callbacks['edit']);
+        lastfeed = 'edit';
+    }
+    if(callbacks['retract']) {
+        this.thoonk.on('retract.id:' + this.name + ':' + id, callbacks['retract']);
+        lastfeed = 'retract';
+    }
+    if(callbacks['position']) {
+        this.thoonk.on('position.id:' + this.name + ':' + id, callbacks['position']);
+        lastfeed = 'position';
+    }
+    if(!this.subscribed) {
+        if(callbacks.hasOwnProperty('done')) {
+            this.thoonk.once('subscribe:feed.' + lastfeed + ':' + this.name, callbacks.done);
+        }
+        this.lredis.subscribe("feed.publish:" + this.name);
+        this.lredis.subscribe("feed.edit:" + this.name);
+        this.lredis.subscribe("feed.retract:" + this.name);
+        this.lredis.subscribe("feed.position:" + this.name);
+        this.subscribed = true;
+    } else {
+        if(callbacks.hasOwnProperty('done')) {
+            callbacks.done();
+        }
+    }
+}
+
+/**
+ * Unsubscribe from feed events.
+ *
+ * Object Property Arguments:
+ *     publish  -- Executed on an item publish event.
+ *     edit     -- Executed on an item edited event.
+ *     retract  -- Executed on an item removal event.
+ *     position -- Placeholder for sorted feed item placement.
+ *     done     -- Executed when subscription is completed.
+ *
+ * Done Callback Arguments: None
+ */
+function feedUnsubscribeId(id, callbacks) {
+    if(callbacks['publish']) {
+        this.thoonk.removeListener('publish.id:' + this.name + ':' + id, callbacks['publish']);
+    }
+    if(callbacks['edit']) {
+        this.thoonk.removeListener('edit.id:' + this.name + ':' + id, callbacks['edit']);
+    }
+    if(callbacks['retract']) {
+        this.thoonk.removeListener('retract.id:' + this.name + ':' + id, callbacks['retract']);
+    }
+    if(callbacks['position']) {
+        this.thoonk.removeListener('position.id:' + this.name + ':' + id, callbacks['position']);
+    }
+    if(callbacks.done) {
+        callbacks.done();
+    }
+}
 function feedDelete (callback) {
     var self = this;
     this.mredis.watch('feeds');
@@ -415,5 +504,7 @@ Feed.prototype.unsubscribe = feedUnsubscribe;
 Feed.prototype.ready = feedReady;
 Feed.prototype.del = feedDelete;
 Feed.prototype.hasId = feedHasId;
+Feed.prototype.subscribeId = feedSubscribeId
+Feed.prototype.unsubscribeId = feedUnsubscribeId
 
 exports.Feed = Feed;

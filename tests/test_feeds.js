@@ -8,6 +8,7 @@ var tests = new TestObject([
     "publish:4: neehaw4",
     "publish:5: neehaw5",
     "publish:6: neehaw6",
+    'publishid:4: 4neehaw4',
     "retract:1",
     "retract:2",
     "ids:3,4,5,6",
@@ -35,6 +36,11 @@ var tests = new TestObject([
         done: function() {
             var testfeed = thoonk.feed("testfeed1", {'max_length': 4});
             testfeed.once("ready", function() {
+                testfeed.subscribeId('4', {
+                    publish: function(feed, id, msg) {
+                        tests.should('publishid:4: ' + id + msg);
+                    }
+                });
                 testfeed.subscribe({
                     publish: function(feed, id, msg) {
                         //console.log("publish:" + id + ": " + msg);
