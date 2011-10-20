@@ -12,15 +12,19 @@ Delete Feed:
         PUBLISH delfeed [feed]\x00[instance uuid]
     EXEC // if nil: go back to WATCH
 
-Set Config:
-    SET feed.config:[feed] //json(config)
+Set Config Value:
+    HSET feed.config:[feed] name value
     PUBLISH conffeed [feed]\x00[instance uuid]
+
+Get Config Value:
+    HGET feed.config:[feed] name
 
 Feed:
 
     Publish:
         //id may be provided or generated. An id that has already been published will update that id
     
+        max = feed.config:[feed] max_length
         WATCH feed.ids:[feed]
         delete_ids = ZRANGE feed.ids:[feed] 0 [-max] // eg ZRANGE feed.ids:test 0 -5 if the max is 4
         MULTI
@@ -214,14 +218,11 @@ Job:
         MULTI
             ZREM feed.claimed:[feed] [id]
             HDEL feed.cancelled:[feed] [id] //just to make sure
+            INCR feed.finishes:[feed]
             //optionally if publishing a result:
-                LPUSH feed.jobfinished:[feed]\x00[id] [result]
-                EXPIRE feed.jobfinished:[feed]\x00[id] [timeout]
+                PUBLISH job.finish:[feed] [id]\x00[result]
             HDEL feed.items:[feed] [id]
         EXEC // if nil: go back to WATCH and try again
-
-    Get Result:
-        BRPOP feed:jobfinished:[feed]\x00[id] [timeout]
 
     Get Ids:
         HKEYS feed.items:[feed]
@@ -266,6 +267,9 @@ Job:
             ZREM feed.claimed:[feed] [id]
             LREM feed.ids:[feed] 1 [id]
         EXEC // if fail, retry
+
+    getNumOfFailures:
+        HGET feed.cancelled:[feed] [id]
 
     Maintenance: //maintain job queue -- only ran by one process per jobqueue on occassion -- still a bit hand-wavey
         MULTI
