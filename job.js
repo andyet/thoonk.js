@@ -6,7 +6,8 @@
 var Feed = require("./feed.js").Feed,
     Queue = require("./queue.js").Queue,
     uuid = require("node-uuid"),
-    redis = require('redis');
+    redis = require('redis'),
+    fs = require('fs');
 
 /**
  * A Thoonk Job is a queue which does not completely remove items
@@ -75,13 +76,12 @@ function Job(thoonk, name, config) {
     Feed.call(this, thoonk, name, config, 'job');
     this.bredis = redis.createClient(this.thoonk.port, this.thoonk.host);
     this.bredis.select(this.thoonk.db);
-    this.publish = this.thoonk.lock.require(jobPublish, this);
-    this.put = this.thoonk.lock.require(jobPublish, this);
-    //this.get = this.thoonk.lock.require(jobGet, this);
     this.finish = this.thoonk.lock.require(jobFinish, this);
     this.cancel = this.thoonk.lock.require(jobCancel, this);
     this.stall = this.thoonk.lock.require(jobStall, this);
     this.retry = this.thoonk.lock.require(jobRetry, this);
+
+    this.script = {};
 
     this.thoonk.on('job.finish:' + this.name, function(feed, id, result) {
         this.emit('job.id.finish:' + id, null, feed, id, result);
@@ -95,10 +95,14 @@ function Job(thoonk, name, config) {
 
 //override feedReady to wait until we're subscribed to the job.finish channel
 function jobReady() {
-    this.thoonk.once('subscribe:' + 'job.finish:' + this.name, function() {
-        this.emit("ready");
+    var publish_lua = fs.readFileSync('script/jobs/publish.lua');
+    this.mredis.send_command('SCRIPT', ['LOAD', publish_lua], function(err, reply) {
+        this.script['publish'] = reply;
+        this.thoonk.once('subscribe:' + 'job.finish:' + this.name, function() {
+            this.emit("ready");
+        }.bind(this));
+        this.lredis.subscribe('job.finish:' + this.name);
     }.bind(this));
-    this.lredis.subscribe('job.finish:' + this.name);
 }
 
 /**
@@ -125,24 +129,8 @@ function jobPublish(item, callback, high_priority, id, finish_callback) {
     if(finish_callback) {
         this.once('job.id.finish:' + id, finish_callback);
     }
-    var multi = this.mredis.multi();
-    if(high_priority === true) {
-        multi.rpush("feed.ids:" + this.name, id);
-    } else {
-        multi.lpush("feed.ids:" + this.name, id);
-    }
-    multi.incr("feed.publishes:" + this.name);
-    multi.hset("feed.items:" + this.name, id, item);
-    multi.zadd("feed.published:" + this.name, Date.now(), id);
-    multi.exec(function(err, reply) {
-        this.thoonk.lock.unlock();
-        if(err || !reply) {
-            process.nextTick(function() {
-                this.publish(item, callback, high_priority, id);
-            }.bind(this));
-        } else if(callback) {
-            callback(null, item, id);
-        }
+    this.mredis.send_command('evalsha', [this.script.publish, '0', this.name, id, item, Date.now(), null], function(err, reply) {
+        callback(null, item, id);
     }.bind(this));
 }
 
