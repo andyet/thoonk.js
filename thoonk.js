@@ -105,7 +105,7 @@ Thoonk.prototype.handle_message = function(channel, msg) {
         //retract: id
         var chans = channel.split(":");
         this.emit('retract:' + chans[1], chans[1], msg);
-        this.emit('publish.id:' + chans[1] + ':' + msg, chans[1], msg);
+        this.emit('retract.id:' + chans[1] + ':' + msg, chans[1], msg);
     } else if (channel.substring(0, 14) == 'feed.position:') {
         var chans = channel.split(":");
         args = msg.split('\x00');
