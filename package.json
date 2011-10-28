@@ -1,6 +1,6 @@
 {
     "name": "thoonk",
-    "version": "0.5.2",
+    "version": "0.5.3",
     "description": "Thoonk is a persistent (and fast!) system for push feeds, queues, and jobs which leverages Redis. Thoonk follows a contract (schema + behavior) to allow multiple languages and custom implementations to interact reliably.",
     "keywords": ["redis", "job", "feed", "queue", "publish", "subscribe", "push", "live", "cluster"],
     "homepage": "thoonk.com",
