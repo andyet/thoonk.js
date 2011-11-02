@@ -53,7 +53,7 @@ function SortedFeed(thoonk, name, config) {
  */
 function sortedFeedPublish(item, id, callback, prepend) {
     this.mredis.incr('feed.idincr:' + this.name, function(err, reply) {
-        if(!id) { id = reply; }
+        if (!id) { id = reply; }
         var multi = this.mredis.multi();
         var relative;
         if(!prepend) {
@@ -69,7 +69,7 @@ function sortedFeedPublish(item, id, callback, prepend) {
         multi.publish('feed.position:' + this.name, id + '\x00' + relative);
         multi.exec(function(err, reply) {
             this.thoonk.lock.unlock();
-            if(callback) { callback(null, item, id); }
+            if (callback) { callback(null, item, id); }
         }.bind(this));
     }.bind(this));
 }
@@ -152,6 +152,7 @@ function sortedFeedEdit(item, id, callback) {
  *     id   -- The generated ID of the item.
  */
 function sortedFeedPublishInsert(item, rel_id, callback, placement) {
+    var posUpdate;
     if(placement == 'BEFORE') {
         posUpdate = ':' + rel_id;
     } else {
@@ -290,9 +291,7 @@ function sortedFeedMove(id, relative_id, placement, callback) {
                         multi.exec(function(err, reply) {
                             this.thoonk.lock.unlock();
                             if(!reply) {
-                                process.nexttick(function() {
-                                    this.publishInsert(item, before_id, callback, placement);
-                                }.bind(this));
+                                if(callback) { callback('does not exist', null, null); }
                             } else {
                                 if(callback) { callback(null, id, relative); }
                             }

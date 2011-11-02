@@ -36,6 +36,13 @@ var Thoonk = exports.Thoonk = function Thoonk(host, port, db) {
     this.mredis.select(db);
     this.lock = new padlock.Padlock();
 
+    this.job_instance = {};
+    this.feed_instance = {};
+    this.sortedfeed_instance = {};
+    this.queue_instance = {};
+
+    this.blocking_redis = {};
+
     this.instance = uuid();
 
     //map message events to this.handle_message using event_handler to apply instance scope
@@ -61,6 +68,14 @@ Thoonk.prototype = Object.create(EventEmitter.prototype, {
         enumerable: false
     }
 });
+
+Thoonk.prototype.get_blocking_redis = function(name) {
+    if(this.blocking_redis[name] == undefined) {
+        this.blocking_redis[name] = redis.createClient(this.port, this.host);
+        this.blocking_redis[name].select(this.db);
+    }
+    return this.blocking_redis[name];
+}
 
 //map the event to the subscription callback
 Thoonk.prototype.handle_message = function(channel, msg) {
@@ -358,7 +373,10 @@ Thoonk.prototype.sortedFeed = function(name, config) {
  * @param config The queue configuration settings
  */
 Thoonk.prototype.queue = function(name, config) {
-    return new Queue(this, name, config);
+    if(this.queue_instance[name] == undefined) {
+        this.queue_instance[name] =  new Queue(this, name, config);
+    }
+    return this.queue_instance[name];
 };
 
 /**
@@ -368,7 +386,10 @@ Thoonk.prototype.queue = function(name, config) {
  * @param config The job queue configuration settings
  */
 Thoonk.prototype.job = function(name, config) {
-    return new Job(this, name, config);
+    if(this.job_instance[name] == undefined) {
+        this.job_instance[name] = new Job(this, name, config);
+    }
+    return this.job_instance[name];
 };
 
 Thoonk.prototype.loadFeed = function(name, callback) {
