@@ -40,7 +40,6 @@ var tests = new TestObject([
         });
         //test publish->get->stall->retry->get->finish
         testjob.publish("item3", function(err, item, id) {
-            //console.log('should:', id);
             tests.should("publish: " + item);
             tests.add("stall: " + id);
             tests.add("job: " + id);

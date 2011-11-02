@@ -34,6 +34,9 @@ var Thoonk = exports.Thoonk = function Thoonk(host, port, db) {
     this.lredis.subscribe("newfeed", "delfeed", "conffeed");
     this.mredis = redis.createClient(port, host);
     this.mredis.select(db);
+
+    this.blocking_redis = {};
+
     this.lock = new padlock.Padlock();
 
     this.instance = uuid();
@@ -61,6 +64,14 @@ Thoonk.prototype = Object.create(EventEmitter.prototype, {
         enumerable: false
     }
 });
+
+Thoonk.prototype._get_blocking_redis = function(name) {
+    if(this.blocking_redis[name] == undefined) {
+        this.blocking_redis[name] = redis.createClient(this.port, this.host);
+        this.blocking_redis[name].select(this.db);
+    }
+    return this.blocking_redis[name];
+};
 
 //map the event to the subscription callback
 Thoonk.prototype.handle_message = function(channel, msg) {

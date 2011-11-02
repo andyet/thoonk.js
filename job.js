@@ -74,9 +74,7 @@ var Feed = require("./feed.js").Feed,
  */
 function Job(thoonk, name, config) {
     Feed.call(this, thoonk, name, config, 'job');
-    this.bredis = redis.createClient(this.thoonk.port, this.thoonk.host);
-    this.bredis.select(this.thoonk.db);
-    this.finish = this.thoonk.lock.require(jobFinish, this);
+    this.bredis = this.thoonk._get_blocking_redis(name);
     this.cancel = this.thoonk.lock.require(jobCancel, this);
     this.stall = this.thoonk.lock.require(jobStall, this);
     this.retry = this.thoonk.lock.require(jobRetry, this);
@@ -96,12 +94,20 @@ function Job(thoonk, name, config) {
 //override feedReady to wait until we're subscribed to the job.finish channel
 function jobReady() {
     var publish_lua = fs.readFileSync('script/jobs/publish.lua');
+    var get_lua = fs.readFileSync('script/jobs/get.lua');
+    var finish_lua = fs.readFileSync('script/jobs/finish.lua');
     this.mredis.send_command('SCRIPT', ['LOAD', publish_lua], function(err, reply) {
         this.script['publish'] = reply;
-        this.thoonk.once('subscribe:' + 'job.finish:' + this.name, function() {
-            this.emit("ready");
+        this.mredis.send_command('SCRIPT', ['LOAD', get_lua], function(err, reply) {
+            this.script['get'] = reply;
+            this.mredis.send_command('SCRIPT', ['LOAD', finish_lua], function(err, reply) {
+                this.script['finish'] = reply;
+                this.thoonk.once('subscribe:' + 'job.finish:' + this.name, function() {
+                    this.emit("ready");
+                }.bind(this));
+                this.lredis.subscribe('job.finish:' + this.name);
+            }.bind(this));
         }.bind(this));
-        this.lredis.subscribe('job.finish:' + this.name);
     }.bind(this));
 }
 
@@ -149,33 +155,9 @@ function jobPublish(item, callback, high_priority, id, finish_callback) {
  */
 function jobGet(timeout, callback) {
     if(!timeout) timeout = 0;
-    //this.bredis.brpop("feed.ids:" + this.name, timeout, function(err, result) {
-    var brpopresult = function(err, result) {
-        if(err || !result) {
-            //unwatch unnecessary since no watch
-            this.thoonk.lock.unlock();
-            //shit timed out, yo
-            callback('timeout', null, null, true);
-        } else {
-            var id = result[1];
-            this.mredis.multi()
-                .zadd("feed.claimed:" + this.name, Date.now(), result[1])
-                .hget("feed.items:" + this.name, result[1])
-            .exec(function(err, result) {
-                this.thoonk.lock.unlock();
-                if(err || !result) {
-                    process.nextTick(function() {
-                        this.get(timeout, callback);
-                    }.bind(this));
-                } else if(callback) {
-                    callback(null, result[1], id, false);
-                }
-            }.bind(this));
-            var d = new Date();
-        }
-    }.bind(this);
-    brpopresult = this.thoonk.lock.require(brpopresult, this);
-    this.bredis.brpop("feed.ids:" + this.name, timeout, brpopresult);
+    this.bredis.send_command('evalsha', [this.script.get, '0', this.name, timeout, Date.now()], function(err, reply) {
+        callback(null, reply[0], reply[1], reply[2]);
+    }.bind(this));
 }
 
 /**
@@ -191,38 +173,12 @@ function jobGet(timeout, callback) {
  *     id    -- The ID of the finished job.
  */
 function jobFinish(id, callback, setresult) {
-    this.mredis.watch("feed.claimed:" + this.name);
-    this.mredis.zrank("feed.claimed:" + this.name, id, function(err, result) {
-        if(result == null) {
-            this.mredis.unwatch(function(err, reply) {
-                this.thoonk.lock.unlock();
-                if(callback) {
-                    callback('Job not claimed', id);
-                }
-            }.bind(this));
-        } else {
-            var multi = this.mredis.multi();
-            multi.zrem("feed.claimed:" + this.name, id);
-            multi.hdel("feed.cancelled:" + this.name, id);
-            multi.zrem("feed.published:" + this.name, id);
-            multi.incr('feed.finishes:' + this.name);
-            if(setresult !== undefined) {
-                multi.publish('job.finish:' + this.name, id + '\x00' + setresult);
-            }
-            multi.hdel("feed.items:" + this.name, id);
-            multi.exec(function(err, reply) {
-                this.thoonk.lock.unlock();
-                if(reply == null) {
-                    //watch failed, try again
-                    process.nextTick(function() {
-                        this.finish(id, callback, setresult, timeout);
-                    }.bind(this));
-                } else {
-                    if(callback) {
-                        callback(null, id);
-                    }
-                }
-            }.bind(this));
+    this.mredis.send_command('evalsha', [this.script.finish, '0', this.name, id, setresult], function(err, reply) {
+        /*if(setresult) {
+            this.mredis.publish('job.finish:' + this.name, id + '\x00' + setresult);
+        }*/
+        if(callback) {
+            callback(null, id);
         }
     }.bind(this));
 }
