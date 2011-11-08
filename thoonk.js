@@ -29,12 +29,16 @@ var Thoonk = exports.Thoonk = function Thoonk(host, port, db) {
     this.port = port;
     this.db = db;
     EventEmitter.call(this);
+    this.setMaxListeners(100000);
     this.lredis = redis.createClient(port, host);
     this.lredis.select(db);
     this.lredis.subscribe("newfeed", "delfeed", "conffeed");
     this.mredis = redis.createClient(port, host);
     this.mredis.select(db);
     this.lock = new padlock.Padlock();
+    
+    this.redis_subscriptions = {};
+    this.redis_psubscriptions = {};
 
     this.job_instance = {};
     this.feed_instance = {};
@@ -54,6 +58,25 @@ var Thoonk = exports.Thoonk = function Thoonk(host, port, db) {
     this.lredis.on("punsubscribe", this.handle_punsubscribe.bind(this));
 
     this.subscribepatterns = {};
+    
+    this.resetLRedis = function() {
+        setTimeout(function() {
+            console.log("WARNING: subscription connection reset");
+            this.lredis.subscribe("newfeed", "delfeed", "conffeed");
+            var subs = [];
+            for(var sub in this.redis_subscriptions) {
+                subs.push(sub)
+                this.lredis.subscribe(sub);
+            }
+            var psubs = [];
+            for(var psub in this.redis_psubscriptions) {
+                psubs.push(psub);
+                this.lredis.psubscribe(psub);
+            }
+        }.bind(this), 3000);
+    }
+
+    this.lredis.on('reconnecting', this.resetLRedis.bind(this));
 
     this.mredis.on("error", function(error) {
         console.log("Error " + error);
@@ -222,6 +245,12 @@ Thoonk.prototype.namespaceSubscribe = function(pattern, callbacks) {
         this.lredis.psubscribe("feed.edit:" + pattern);
         this.lredis.psubscribe("feed.retract:" + pattern);
         this.lredis.psubscribe("feed.position:" + pattern);
+
+        this.redis_psubscriptions['feed.publish:' + pattern] = true;
+        this.redis_psubscriptions['feed.edit:' + pattern] = true;
+        this.redis_psubscriptions['feed.retract:' + pattern] = true;
+        this.redis_psubscriptions['feed.publish:' + pattern] = true;
+
         this.subscribepatterns[pattern] = 0;
     }
     this.subscribepatterns[pattern]++;
@@ -267,6 +296,11 @@ Thoonk.prototype.namespaceUnsubscribe = function(pattern, callbacks) {
             this.lredis.punsubscribe("feed.edit:" + pattern);
             this.lredis.punsubscribe("feed.retract:" + pattern);
             this.lredis.punsubscribe("feed.position:" + pattern);
+
+            delete this.redis_psubscriptions['feed.publish:' + pattern];
+            delete this.redis_psubscriptions['feed.edit:' + pattern];
+            delete this.redis_psubscriptions['feed.retract:' + pattern];
+            delete this.redis_psubscriptions['feed.publish:' + pattern];
         }
         if(callbacks.hasOwnProperty('done')) {
             this.once('punsubscribe:feed.position:' + pattern, callbacks.done);

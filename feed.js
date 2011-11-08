@@ -55,6 +55,9 @@ function Feed(thoonk, name, config, type) {
     this.name = name;
     this.subscribed = false;
     this.thoonk.once("ready:" + name, this.ready.bind(this));
+
+    this.subscribe_count = 0;
+
     this.thoonk.exists(name,
         //exists
         function(reply) {
@@ -297,6 +300,7 @@ function feedGetAll(callback) {
  * Done Callback Arguments: None
  */
 function feedSubscribe(callbacks) {
+    this.subscribe_count++;
     var lastfeed = null;
     if(callbacks.publish) {
         this.thoonk.on('publish:' + this.name, callbacks.publish);
@@ -322,6 +326,10 @@ function feedSubscribe(callbacks) {
         this.lredis.subscribe("feed.edit:" + this.name);
         this.lredis.subscribe("feed.retract:" + this.name);
         this.lredis.subscribe("feed.position:" + this.name);
+        this.thoonk.redis_subscriptions['feed.publish:' + this.name] = true;
+        this.thoonk.redis_subscriptions['feed.edit:' + this.name] = true;
+        this.thoonk.redis_subscriptions['feed.retract:' + this.name] = true;
+        this.thoonk.redis_subscriptions['feed.position:' + this.name] = true;
         this.subscribed = true;
     } else {
         if(callbacks.hasOwnProperty('done')) {
@@ -343,6 +351,7 @@ function feedSubscribe(callbacks) {
  * Done Callback Arguments: None
  */
 function feedUnsubscribe(callbacks) {
+    this.subscribe_count--;
     if(callbacks.publish) {
         this.thoonk.removeListener('publish:' + this.name, callbacks.publish);
     }
@@ -357,6 +366,18 @@ function feedUnsubscribe(callbacks) {
     }
     if(callbacks.done) {
         callbacks.done();
+    }
+    if(this.subscribe_count < 0) { this.subscribe_count = 0;}
+    if(this.subscribe_count == 0) {
+        this.lredis.unsubscribe("feed.publish:" + this.name);
+        this.lredis.unsubscribe("feed.edit:" + this.name);
+        this.lredis.unsubscribe("feed.retract:" + this.name);
+        this.lredis.unsubscribe("feed.position:" + this.name);
+        delete this.thoonk.redis_subscriptions['feed.publish:' + this.name];
+        delete this.thoonk.redis_subscriptions['feed.edit:' + this.name];
+        delete this.thoonk.redis_subscriptions['feed.retract:' + this.name];
+        delete this.thoonk.redis_subscriptions['feed.position:' + this.name];
+        this.subscribed = false;
     }
 }
 
@@ -387,6 +408,7 @@ function feedUnsubscribe(callbacks) {
  * Done Callback Arguments: None
  */
 function feedSubscribeId(id, callbacks) {
+    this.subscribe_count++;
     var lastfeed = null;
     if(callbacks['publish']) {
         this.thoonk.on('publish.id:' + this.name + ':' + id, callbacks['publish']);
@@ -412,6 +434,10 @@ function feedSubscribeId(id, callbacks) {
         this.lredis.subscribe("feed.edit:" + this.name);
         this.lredis.subscribe("feed.retract:" + this.name);
         this.lredis.subscribe("feed.position:" + this.name);
+        this.thoonk.redis_subscriptions['feed.publish:' + this.name] = true;
+        this.thoonk.redis_subscriptions['feed.edit:' + this.name] = true;
+        this.thoonk.redis_subscriptions['feed.retract:' + this.name] = true;
+        this.thoonk.redis_subscriptions['feed.position:' + this.name] = true;
         this.subscribed = true;
     } else {
         if(callbacks.hasOwnProperty('done')) {
@@ -433,6 +459,7 @@ function feedSubscribeId(id, callbacks) {
  * Done Callback Arguments: None
  */
 function feedUnsubscribeId(id, callbacks) {
+    this.subscribe_count--;
     if(callbacks['publish']) {
         this.thoonk.removeListener('publish.id:' + this.name + ':' + id, callbacks['publish']);
     }
@@ -447,6 +474,18 @@ function feedUnsubscribeId(id, callbacks) {
     }
     if(callbacks.done) {
         callbacks.done();
+    }
+    if(this.subscribe_count < 0) { this.subscribe_count = 0; }
+    if(this.subscribe_count == 0) {
+        this.lredis.unsubscribe("feed.publish:" + this.name);
+        this.lredis.unsubscribe("feed.edit:" + this.name);
+        this.lredis.unsubscribe("feed.retract:" + this.name);
+        this.lredis.unsubscribe("feed.position:" + this.name);
+        delete this.thoonk.redis_subscriptions['feed.publish:' + this.name];
+        delete this.thoonk.redis_subscriptions['feed.edit:' + this.name];
+        delete this.thoonk.redis_subscriptions['feed.retract:' + this.name];
+        delete this.thoonk.redis_subscriptions['feed.position:' + this.name];
+        this.subscribed = false;
     }
 }
 function feedDelete (callback) {
