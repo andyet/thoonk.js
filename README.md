@@ -159,7 +159,7 @@ The pattern uses asterisks (*) for matching.
 
 Publishing to a feed adds an item to the end of the feed, sorted by publish time.
 
-    feed.publish('item contents', 'optional id', function(item, id) {
+    feed.publish('item contents', 'optional id', function(err, item, id) {
         //done publishing!
     });
 
@@ -174,7 +174,7 @@ structure by only working the IDs and not with the item contents.
 Removing an item is done through retraction, which simply requires the ID of the
 item to remove.
 
-    feed.retract('item id', function(id, error) {
+    feed.retract('item id', function(err, id) {
         //success?
     });
 
