@@ -44,10 +44,10 @@ function TestObject(should_events, start_function) {
         this.extra_tests++;
         if(success) {
             process.stdout.write(checkmark);
-            process.stdout.flush();
+            //process.stdout.flush();
         } else {
             process.stdout.write(failmark);
-            process.stdout.flush();
+            //process.stdout.flush();
             this.manual_errors.push(msg);
         }
     }
@@ -61,12 +61,12 @@ function TestObject(should_events, start_function) {
         }
         if(pass) {
             process.stdout.write(checkmark);
-            process.stdout.flush();
+            //process.stdout.flush();
             this.extra_tests += 1;
         } else {
             this.manual_errors.push(JSON.stringify(item1) + " != " + JSON.stringify(item2));
             process.stdout.write(failmark);
-            process.stdout.flush();
+            //process.stdout.flush();
         }
     }
 
@@ -74,11 +74,11 @@ function TestObject(should_events, start_function) {
         if(this.check_events.indexOf(eevent) == -1) {
             this.error_events.push(eevent); 
             process.stdout.write(failmark);
-            process.stdout.flush();
+            //process.stdout.flush();
         } else {
             this.good_events.push(eevent);
             process.stdout.write(checkmark);
-            process.stdout.flush();
+            //process.stdout.flush();
         }
     }
 
