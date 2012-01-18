@@ -8,7 +8,7 @@ function runtest(config) {
     }
     var test = require("./tests/test_" + testnames[idx]).tests;
     process.stdout.write("Testing " + testnames[idx] );
-    process.stdout.flush()
+    //process.stdout.flush()
     idx++;
     test.config(config);
     test.start();
