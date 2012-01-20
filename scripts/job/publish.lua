@@ -6,5 +6,4 @@ else
 end
 redis.call('incr', 'feed.publishes:'..ARGV[1]);
 redis.call('hset', 'feed.items:'..ARGV[1], ARGV[2], ARGV[3]);
-redis.call('zadd', 'feed.published:'..ARGV[1], ARGV[4], ARGV[2]);
-return ARGV[3], ARGV[2];
+return redis.call('zadd', 'feed.published:'..ARGV[1], ARGV[4], ARGV[2]);
