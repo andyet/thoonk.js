@@ -13,13 +13,11 @@ var Thoonk = function() {
     this.ready = false;
 
     this.lredis.on('message', function(channel, msg) {
-        console.log(channel, "==>", msg);
         msg = msg.toString();
         this.emit(channel, channel, msg);
     }.bind(this));
 
     this.lredis.on('subscribe', function(channel) {
-        console.log('subscribed.' + channel);
         this.emit('subscribed.' + channel);
     }.bind(this));
 
@@ -58,14 +56,12 @@ Thoonk.prototype.constructor = Thoonk;
             return new theobject(name, this);
         }.bind(this);
         var dir = theobject.prototype.scriptdir;
-        console.log('//////', dir);
         this.scripts[theobject.prototype.objtype] = {};
         this.shas[theobject.prototype.objtype] = {}
         var curdir = fs.readdirSync(dir);
         curdir.forEach(function(filename, fidx, curdir) {
             if(path.extname(filename) == '.lua') {
                 var verbname = path.basename(filename).slice(0,-4);
-                console.log('  ', verbname, theobject.prototype.objtype)
                 this.scripts[theobject.prototype.objtype][verbname] = fs.readFileSync(dir + '/' + filename).toString();
                 var last = (fidx + 1 == curdir.length);
                 this.redis.sendCommand('SCRIPT', ['LOAD', this.scripts[theobject.prototype.objtype][verbname]], function(err, reply) {
@@ -152,61 +148,5 @@ ThoonkBaseObject.constructor = ThoonkBaseObject;
 
 }).call(ThoonkBaseObject.prototype);
 
-var Feed = function(name, thoonk) {
-    ThoonkBaseObject.call(this, name, thoonk);
-    this.subscribables = ['publish', 'edit', 'retract'];
-    this.subinitted = false;
-};
-
-Feed.prototype = ThoonkBaseObject.prototype;
-Feed.prototype.constructor = Feed;
-Feed.prototype.objtype = 'feed';
-Feed.prototype.scriptdir = __dirname + '/scripts/feed';
-
-(function() {
-    //continue extending the Feed prototype
-
-    this.handle_event = function(channel, msg) {
-        //overridden
-        var objsplit = channel.split(':');
-        var typesplit = objsplit[0].split('.');
-        var eventname = typesplit[2];
-        if(eventname == 'publish') {
-            var msgsplit = msg.split('\x00');
-            //pulish, id, item
-            this.emit('publish', msgsplit[0], msgsplit[1]);
-            this.emit('publishid:' + msgsplit[0], msgsplit[0], msgsplit[1]);
-        }
-        console.log("override", this.name, "got", channel, msg);
-    };
-
-    this.publish = function(item, id, callback) {
-        if(id == undefined || id == null) {
-            id = uuid();
-        };
-        return this.runscript('publish', [id, item, Date.now().toString()], callback);
-    };
-
-    this.retract = function() {
-    };
-
-    this.get = function() {
-    };
-
-}).call(Feed.prototype);
-
-
-var Deck = function() {
-};
-
-Deck.prototype = (function() {
-})();
-
-var Job = function() {
-};
-
-Job.prototype = (function() {
-})();
-
 exports.Thoonk = Thoonk;
-exports.Feed = Feed;
+exports.ThoonkBaseObject = ThoonkBaseObject;

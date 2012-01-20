@@ -1,6 +1,6 @@
 var TestObject = require("./testcore").TestObject,
     Thoonk = require("../thoonk").Thoonk;
-var Feed  = require('../thoonk').Feed;
+var Feed  = require('../feed').Feed;
 
 var tests = new TestObject([
     "publish:1: neehaw",
@@ -27,7 +27,6 @@ var tests = new TestObject([
     var testfeed = thoonk.objects.Feed('testfeed1');//thoonk.feed("testfeed1", {'max_length': 4});
     testfeed.init_subscribe();
     testfeed.on('publish', function(id, item) {
-        console.log("got a publish");
         tests.should("publish:" + id +": " + item);
     });
     testfeed.once('publishid:4', function(id, item) {
