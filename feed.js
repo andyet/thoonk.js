@@ -1,4 +1,3 @@
-var EventEmitter = require("events").EventEmitter;
 var thoonkmodule = require('./thoonk');
 
 var Feed = function(name, thoonk) {
