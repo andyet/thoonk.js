@@ -29,15 +29,6 @@ var Thoonk = function() {
     this.subscriptions = {};
 
     this.objects = {};
-
-    //read scripts
-    /*
-    scriptdir = fs.readdirSync(__dirname + '/scripts/');
-    scriptdir.forEach(function(objname, didx, scriptdir) {
-        console.log(objname);
-    }.bind(this));
-    */
-
 };
 
 Thoonk.prototype = EventEmitter.prototype;
@@ -75,12 +66,6 @@ Thoonk.prototype.constructor = Thoonk;
                 }.bind(this));
             }
         }.bind(this));
-    };
-
-    this.subscribe = function(name, functions) {
-    };
-
-    this.unsubscribe = function() {
     };
 
     this.create = function() {
@@ -134,12 +119,6 @@ ThoonkBaseObject.constructor = ThoonkBaseObject;
             }
             this.subinitted = true;
         }
-    };
-    
-    this.subscribe = function() {
-    };
-
-    this.unsubscribe = function() {
     };
 
     this.runscript = function(scriptname, args, callback) {
