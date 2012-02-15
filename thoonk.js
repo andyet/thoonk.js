@@ -122,7 +122,21 @@ ThoonkBaseObject.constructor = ThoonkBaseObject;
     };
 
     this.runscript = function(scriptname, args, callback) {
-        this.thoonk._runscript(this.objtype, scriptname, this.name, args, callback);
+        this.thoonk._runscript(this.objtype, scriptname, this.name, args, function(err, results) {
+            if(err) {
+                console.log(scriptname, err);
+            } else {
+                var newr = [];
+                for(var i in results) {
+                    if(results[i] != null && typeof results[i] === "object" && results[i].constructor == Buffer) {
+                        newr.push(results[i].toString())
+                    } else {
+                        newr.push(results[i]);
+                    }
+                }
+                callback.apply(this, newr);
+            };
+        }.bind(this));
     };
 
 }).call(ThoonkBaseObject.prototype);
