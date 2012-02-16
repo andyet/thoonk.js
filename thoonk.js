@@ -56,6 +56,7 @@ Thoonk.prototype.constructor = Thoonk;
                 this.scripts[theobject.prototype.objtype][verbname] = fs.readFileSync(dir + '/' + filename).toString();
                 var last = (fidx + 1 == curdir.length);
                 this.redis.sendCommand('SCRIPT', ['LOAD', this.scripts[theobject.prototype.objtype][verbname]], function(err, reply) {
+                    if(err) { console.log(verbname, err); }
                     this.shas[theobject.prototype.objtype][verbname] = reply.toString();
                     if(last) {
                         if(callback) {
