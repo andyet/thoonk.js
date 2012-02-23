@@ -50,11 +50,12 @@ Thoonk.prototype.constructor = Thoonk;
         this.scripts[theobject.prototype.objtype] = {};
         this.shas[theobject.prototype.objtype] = {}
         var curdir = fs.readdirSync(dir);
+        curdir = curdir.filter(function(fname) { return fname.substr(-4) == '.lua'; });
         curdir.forEach(function(filename, fidx, curdir) {
+            var last = (fidx + 1 == curdir.length);
             if(path.extname(filename) == '.lua') {
                 var verbname = path.basename(filename).slice(0,-4);
                 this.scripts[theobject.prototype.objtype][verbname] = fs.readFileSync(dir + '/' + filename).toString();
-                var last = (fidx + 1 == curdir.length);
                 this.redis.sendCommand('SCRIPT', ['LOAD', this.scripts[theobject.prototype.objtype][verbname]], function(err, reply) {
                     if(err) { console.log(verbname, err); }
                     this.shas[theobject.prototype.objtype][verbname] = reply.toString();
