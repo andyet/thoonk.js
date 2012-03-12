@@ -31,7 +31,7 @@ var Thoonk = function() {
     this.objects = {};
 };
 
-Thoonk.prototype = EventEmitter.prototype;
+Thoonk.prototype = new EventEmitter();
 Thoonk.prototype.constructor = Thoonk;
 
 (function() {
@@ -92,7 +92,7 @@ var ThoonkBaseObject = function(name, thoonk) {
     //TODO: create feed if it doesn't exist
 };
 
-ThoonkBaseObject.prototype = EventEmitter.prototype;
+ThoonkBaseObject.prototype = new EventEmitter();
 ThoonkBaseObject.constructor = ThoonkBaseObject;
 
 (function() {
@@ -136,7 +136,9 @@ ThoonkBaseObject.constructor = ThoonkBaseObject;
                         newr.push(results[i]);
                     }
                 }
-                callback.apply(this, newr);
+                if(callback) {
+                    callback.apply(this, newr);
+                }
             };
         }.bind(this));
     };
