@@ -16,4 +16,4 @@ if isnew then
 else
     redis.call('publish', 'event.feed.edit:'..ARGV[1], ARGV[2]..'\0'..ARGV[3]);
 end
-return ARGV[2]
+return {false, ARGV[2]};
