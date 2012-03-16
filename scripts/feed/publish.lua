@@ -2,10 +2,12 @@
 local max = redis.call('hget', 'feed.config:'..ARGV[1], 'max_length');
 if max then
     local delete_ids = redis.call('zrange', 'feed.ids:'..ARGV[1], 0, '-'..max);
-    redis.call('zrem', 'feed.ids:'..ARGV[1], unpack(delete_ids));
-    redis.call('hdel', 'feed.items:'..ARGV[1], unpack(delete_ids));
-    for idx, id in ipairs(delete_ids) do
-        redis.call('publish', 'event.feed.retract:'..ARGV[1], id);
+    if #delete_ids ~= 0 then
+        redis.call('zrem', 'feed.ids:'..ARGV[1], unpack(delete_ids));
+        redis.call('hdel', 'feed.items:'..ARGV[1], unpack(delete_ids));
+        for idx, id in ipairs(delete_ids) do
+            redis.call('publish', 'event.feed.retract:'..ARGV[1], id);
+        end
     end
 end
 local isnew = redis.call('zadd', 'feed.ids:'..ARGV[1], ARGV[4], ARGV[2]);

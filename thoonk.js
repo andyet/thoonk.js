@@ -1,4 +1,4 @@
-var redis = require('node-redis'),
+var redis = require('redis'),
     fs = require('fs'),
     path = require('path'),
     EventEmitter = require("events").EventEmitter,
@@ -56,7 +56,7 @@ Thoonk.prototype.constructor = Thoonk;
             if(path.extname(filename) == '.lua') {
                 var verbname = path.basename(filename).slice(0,-4);
                 this.scripts[theobject.prototype.objtype][verbname] = fs.readFileSync(dir + '/' + filename).toString();
-                this.redis.sendCommand('SCRIPT', ['LOAD', this.scripts[theobject.prototype.objtype][verbname]], function(err, reply) {
+                this.redis.send_command('SCRIPT', ['LOAD', this.scripts[theobject.prototype.objtype][verbname]], function(err, reply) {
                     if(err) { console.log(verbname, err); }
                     this.shas[theobject.prototype.objtype][verbname] = reply.toString();
                     if(last) {
@@ -75,7 +75,7 @@ Thoonk.prototype.constructor = Thoonk;
 
     this._runscript = function(objtype, scriptname, feedname, args, callback) {
         args = [this.shas[objtype][scriptname], '0', feedname].concat(args);
-        this.redis.sendCommand('EVALSHA', args, callback);
+        this.redis.send_command('EVALSHA', args, callback);
     };
 
     this.feed = function(name, config) {
@@ -125,19 +125,12 @@ ThoonkBaseObject.constructor = ThoonkBaseObject;
 
     this.runscript = function(scriptname, args, callback) {
         this.thoonk._runscript(this.objtype, scriptname, this.name, args, function(err, results) {
+            console.log(scriptname);
             if(err) {
                 console.log(scriptname, err);
             } else {
-                var newr = [];
-                for(var i in results) {
-                    if(results[i] != null && typeof results[i] === "object" && results[i].constructor == Buffer) {
-                        newr.push(results[i].toString())
-                    } else {
-                        newr.push(results[i]);
-                    }
-                }
                 if(callback) {
-                    callback.apply(this, newr);
+                    callback.apply(this, results);
                 }
             };
         }.bind(this));

@@ -1,2 +1,3 @@
 --name
-return {false, redis.call('zrange', 'feed.ids:'..ARGV[1], 0, -1)};
+local results = redis.call('ZRANGE', 'feed.ids:'..ARGV[1], 0, -1);
+return {false, results};
