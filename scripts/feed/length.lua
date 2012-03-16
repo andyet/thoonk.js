@@ -1,2 +1,2 @@
 --name
-return redis.call('zcount', 'feed.ids:'..ARGV[1], '-inf', '+inf')
+return {false, redis.call('zcount', 'feed.ids:'..ARGV[1], '-inf', '+inf')};

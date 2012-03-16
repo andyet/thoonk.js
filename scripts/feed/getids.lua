@@ -1,2 +1,2 @@
 --name
-return redis.call('zrange', 'feed.ids:'..ARGV[1], 0, -1)
+return {false, redis.call('zrange', 'feed.ids:'..ARGV[1], 0, -1)};

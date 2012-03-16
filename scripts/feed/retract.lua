@@ -5,4 +5,4 @@ if canretract then
     redis.call('hdel', 'feed.items:'..ARGV[1], ARGV[2]);
     redis.call('publish', 'feed.retract:'..ARGV[1], ARGV[2]);
 end
-return canretract
+return {false, canretract};
