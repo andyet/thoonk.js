@@ -23,7 +23,6 @@ var tests = new TestObject([
         thoonk.quit();
     });
     thoonk.redis.flushdb();
-    console.log(thoonk.objects);
     var testfeed = thoonk.objects.Feed('testfeed1');//thoonk.feed("testfeed1", {'max_length': 4});
     testfeed.init_subscribe();
     testfeed.on('publish', function(id, item) {
@@ -33,7 +32,6 @@ var tests = new TestObject([
         tests.should('publishid:4: ' + id + item);
     });
     testfeed.once("subscribe_ready", function() {
-        console.log("starting...");
         /*
         testfeed.subscribeId('4', {
             publish: function(feed, id, msg) {
@@ -58,30 +56,38 @@ var tests = new TestObject([
             },
         */
            // done: function() {
+        testfeed.create({max_length:4}, function() {
                 testfeed.publish("neehaw", "1");
                 testfeed.publish("neehaw2", "2");
                 testfeed.publish("neehaw3", "3");
                 testfeed.publish("neehaw4", "4");
                 testfeed.publish("neehaw5", "5");
                 testfeed.publish("neehaw6", "6", function() {
-                    /*testfeed.getIds(function(err, ids) {
+                    testfeed.get('4', function() {
+                        //console.log(arguments);
+                    });
+                    testfeed.getIds(function(err, ids) {
                         tests.should("ids:" + ids.join(','));
                     });
                     testfeed.hasId('4', function(err, result) {
+                        console.log(arguments);
                         tests.should('hasId4:' + result);
                     });
                     testfeed.hasId('1', function(err, result) {
+                        console.log(arguments);
                         tests.should('hasId1:' + result);
                     });
+                    /*
                     testfeed.getAll(function(err, all) {
                         var other = [{id: '3', item: "neehaw3"}, {id:'4', item: "neehaw4"}, {id: '5', item: "neehaw5"}, {id:'6',item: "neehaw6"}];
                         tests.compare(all, other);
                         testfeed.retract("6", function(id, err) {
                         });
-                    });*/
+                    });
+                    */
                 });
             //}
-        //});
+        });
     });
 });
 

@@ -25,7 +25,16 @@ Feed.prototype.scriptdir = __dirname + '/scripts/feed';
             this.emit('publish', msgsplit[0], msgsplit[1]);
             this.emit('publishid:' + msgsplit[0], msgsplit[0], msgsplit[1]);
         }
-        console.log("override", this.name, "got", channel, msg);
+    };
+
+    this.create = function(config, callback) {
+        config = JSON.stringify(config);
+        return this.runscript('create', [config], callback);
+    };
+
+    this.config = function(config, callback) {
+        config = JSON.stringify(config);
+        return this.runscript('config', [config], callback);
     };
 
     this.publish = function(item, id, callback) {
@@ -35,10 +44,28 @@ Feed.prototype.scriptdir = __dirname + '/scripts/feed';
         return this.runscript('publish', [id, item, Date.now().toString()], callback);
     };
 
-    this.retract = function() {
+    this.retract = function(id, callback) {
+        return this.runscript('get', [id], callback);
     };
 
-    this.get = function() {
+    this.get = function(id, callback) {
+        return this.runscript('get', [id], callback);
+    };
+
+    this.getIds = function(callback) {
+        return this.runscript('getids', [], callback);
+    };
+
+    this.getAll = function(callback) {
+        return this.runscript('getall', [], callback);
+    };
+
+    this.length = function(callback) {
+        return this.runscript('length', [], callback);
+    };
+
+    this.hasId = function(id, callback) {
+        return this.runscript('hasid', [id], callback);
     };
 
 }).call(Feed.prototype);
