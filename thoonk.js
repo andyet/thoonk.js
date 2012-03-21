@@ -125,7 +125,6 @@ ThoonkBaseObject.constructor = ThoonkBaseObject;
 
     this.runscript = function(scriptname, args, callback) {
         this.thoonk._runscript(this.objtype, scriptname, this.name, args, function(err, results) {
-            console.log(scriptname);
             if(err) {
                 console.log(scriptname, err);
             } else {
