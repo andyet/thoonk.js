@@ -31,7 +31,7 @@ var Thoonk = function() {
     this.objects = {};
 };
 
-Thoonk.prototype = new EventEmitter();
+Thoonk.prototype = Object.create(EventEmitter.prototype);
 Thoonk.prototype.constructor = Thoonk;
 
 (function() {
@@ -92,7 +92,7 @@ var ThoonkBaseObject = function(name, thoonk) {
     //TODO: create feed if it doesn't exist
 };
 
-ThoonkBaseObject.prototype = new EventEmitter();
+ThoonkBaseObject.prototype = Object.create(EventEmitter.prototype);
 ThoonkBaseObject.constructor = ThoonkBaseObject;
 
 (function() {
