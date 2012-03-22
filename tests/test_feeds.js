@@ -28,34 +28,14 @@ var tests = new TestObject([
     testfeed.on('publish', function(id, item) {
         tests.should("publish:" + id +": " + item);
     });
+    testfeed.on('retract', function(id) {
+        tests.should("retract:"+id);
+    });
     testfeed.once('publishid:4', function(id, item) {
         tests.should('publishid:4: ' + id + item);
     });
+
     testfeed.once("subscribe_ready", function() {
-        /*
-        testfeed.subscribeId('4', {
-            publish: function(feed, id, msg) {
-                tests.should('publishid:4: ' + id + msg);
-            }
-        });
-        */
-        /*
-        testfeed.subscribe({
-            publish: function(feed, id, msg) {
-                //console.log("publish:" + id + ": " + msg);
-                tests.should("publish:" + id + ": " + msg);
-            },
-            edit: function(feed, id, msg) {
-                console.log("updated");
-            },
-            retract: function(feed, id) {
-                tests.should("retract:" + id);
-            }, 
-            position: function() {
-                //position placeholder
-            },
-        */
-           // done: function() {
         testfeed.create({max_length:4}, function() {
                 testfeed.publish("neehaw", "1");
                 testfeed.publish("neehaw2", "2");
@@ -70,23 +50,18 @@ var tests = new TestObject([
                         tests.should("ids:" + ids.join(','));
                     });
                     testfeed.hasId('4', function(err, result) {
-                        console.log(arguments);
                         tests.should('hasId4:' + result);
                     });
                     testfeed.hasId('1', function(err, result) {
-                        console.log(arguments);
                         tests.should('hasId1:' + result);
                     });
-                    /*
                     testfeed.getAll(function(err, all) {
                         var other = [{id: '3', item: "neehaw3"}, {id:'4', item: "neehaw4"}, {id: '5', item: "neehaw5"}, {id:'6',item: "neehaw6"}];
                         tests.compare(all, other);
                         testfeed.retract("6", function(id, err) {
                         });
                     });
-                    */
                 });
-            //}
         });
     });
 });
