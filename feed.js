@@ -24,6 +24,8 @@ Feed.prototype.scriptdir = __dirname + '/scripts/feed';
             //pulish, id, item
             this.emit('publish', msgsplit[0], msgsplit[1]);
             this.emit('publishid:' + msgsplit[0], msgsplit[0], msgsplit[1]);
+        } else if (eventname == 'retract') {
+            this.emit('retract', msg);
         }
     };
 
@@ -45,7 +47,7 @@ Feed.prototype.scriptdir = __dirname + '/scripts/feed';
     };
 
     this.retract = function(id, callback) {
-        return this.runscript('get', [id], callback);
+        return this.runscript('retract', [id], callback);
     };
 
     this.get = function(id, callback) {
@@ -57,7 +59,9 @@ Feed.prototype.scriptdir = __dirname + '/scripts/feed';
     };
 
     this.getAll = function(callback) {
-        return this.runscript('getall', [], callback);
+        return this.runscript('getall', [], function(err, result) {
+            callback(err, JSON.parse(result));
+        });
     };
 
     this.length = function(callback) {
@@ -65,7 +69,9 @@ Feed.prototype.scriptdir = __dirname + '/scripts/feed';
     };
 
     this.hasId = function(id, callback) {
-        return this.runscript('hasid', [id], callback);
+        return this.runscript('hasid', [id], function(err, result) {
+            callback(err, Boolean(result));
+        });
     };
 
 }).call(Feed.prototype);
