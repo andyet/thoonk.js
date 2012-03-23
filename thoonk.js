@@ -4,12 +4,14 @@ var redis = require('redis'),
     EventEmitter = require("events").EventEmitter,
     uuid = require('node-uuid');
 
-var Thoonk = function() {
+var Thoonk = function(host, port) {
     EventEmitter.call(this);
 
 
-    this.redis = redis.createClient();
-    this.lredis = redis.createClient();
+    this.host = host || 'localhost';
+    this.port = port || 6379;
+    this.redis = redis.createClient(this.port, this.host);
+    this.lredis = redis.createClient(this.port, this.host);
     this.ready = false;
 
     this.lredis.on('message', function(channel, msg) {
@@ -139,3 +141,6 @@ ThoonkBaseObject.constructor = ThoonkBaseObject;
 
 exports.Thoonk = Thoonk;
 exports.ThoonkBaseObject = ThoonkBaseObject;
+exports.createClient = function(host, port) {
+    return new Thoonk(host, port);
+};
