@@ -18,50 +18,52 @@ var tests = new TestObject([
     "hasId1:false",
 ], function(config) {
     var thoonk = new Thoonk(config.host, config.port, config.db);
-    thoonk.registerType('Feed', Feed, function() {});
-    tests.on("done", function() {
-        thoonk.quit();
-    });
-    thoonk.redis.flushdb();
-    var testfeed = thoonk.objects.Feed('testfeed1');//thoonk.feed("testfeed1", {'max_length': 4});
-    testfeed.init_subscribe();
-    testfeed.on('publish', function(id, item) {
-        tests.should("publish:" + id +": " + item);
-    });
-    testfeed.on('retract', function(id) {
-        tests.should("retract:"+id);
-    });
-    testfeed.once('publishid:4', function(id, item) {
-        tests.should('publishid:4: ' + id + item);
-    });
+    thoonk.registerType('Feed', Feed, function() {
+    //});
+        tests.on("done", function() {
+            thoonk.quit();
+        });
+        thoonk.redis.flushdb();
+        var testfeed = thoonk.objects.Feed('testfeed1');//thoonk.feed("testfeed1", {'max_length': 4});
+        testfeed.init_subscribe();
+        testfeed.on('publish', function(id, item) {
+            tests.should("publish:" + id +": " + item);
+        });
+        testfeed.on('retract', function(id) {
+            tests.should("retract:"+id);
+        });
+        testfeed.once('publishid:4', function(id, item) {
+            tests.should('publishid:4: ' + id + item);
+        });
 
-    testfeed.once("subscribe_ready", function() {
-        testfeed.create({max_length:4}, function() {
-                testfeed.publish("neehaw", "1");
-                testfeed.publish("neehaw2", "2");
-                testfeed.publish("neehaw3", "3");
-                testfeed.publish("neehaw4", "4");
-                testfeed.publish("neehaw5", "5");
-                testfeed.publish("neehaw6", "6", function() {
-                    testfeed.get('4', function() {
-                        //console.log(arguments);
-                    });
-                    testfeed.getIds(function(err, ids) {
-                        tests.should("ids:" + ids.join(','));
-                    });
-                    testfeed.hasId('4', function(err, result) {
-                        tests.should('hasId4:' + result);
-                    });
-                    testfeed.hasId('1', function(err, result) {
-                        tests.should('hasId1:' + result);
-                    });
-                    testfeed.getAll(function(err, all) {
-                        var other = [{id: '3', item: "neehaw3"}, {id:'4', item: "neehaw4"}, {id: '5', item: "neehaw5"}, {id:'6',item: "neehaw6"}];
-                        tests.compare(all, other);
-                        testfeed.retract("6", function(id, err) {
+        testfeed.once("subscribe_ready", function() {
+            testfeed.create({max_length:4}, function() {
+                    testfeed.publish("neehaw", "1");
+                    testfeed.publish("neehaw2", "2");
+                    testfeed.publish("neehaw3", "3");
+                    testfeed.publish("neehaw4", "4");
+                    testfeed.publish("neehaw5", "5");
+                    testfeed.publish("neehaw6", "6", function() {
+                        testfeed.get('4', function() {
+                            //console.log(arguments);
+                        });
+                        testfeed.getIds(function(err, ids) {
+                            tests.should("ids:" + ids.join(','));
+                        });
+                        testfeed.hasId('4', function(err, result) {
+                            tests.should('hasId4:' + result);
+                        });
+                        testfeed.hasId('1', function(err, result) {
+                            tests.should('hasId1:' + result);
+                        });
+                        testfeed.getAll(function(err, all) {
+                            var other = [{id: '3', item: "neehaw3"}, {id:'4', item: "neehaw4"}, {id: '5', item: "neehaw5"}, {id:'6',item: "neehaw6"}];
+                            tests.compare(all, other);
+                            testfeed.retract("6", function(id, err) {
+                            });
                         });
                     });
-                });
+            });
         });
     });
 });

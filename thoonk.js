@@ -79,6 +79,11 @@ Thoonk.prototype.constructor = Thoonk;
         args = [this.shas[objtype][scriptname], '0', feedname].concat(args);
         this.redis.send_command('EVALSHA', args, callback);
     };
+    
+    this._runscriptsingle = function(objtype, scriptname, args, callback) {
+        args = [this.shas[objtype][scriptname], '0'].concat(args);
+        this.redis.send_command('EVALSHA', args, callback);
+    };
 
     this.feed = function(name, config) {
         return new Feed(name);
@@ -139,8 +144,56 @@ ThoonkBaseObject.constructor = ThoonkBaseObject;
 
 }).call(ThoonkBaseObject.prototype);
 
+var ThoonkBaseInterface = function(thoonk) {
+    EventEmitter.call(this);
+    this.thoonk = thoonk;
+    this.redis = this.thoonk.redis;
+};
+
+(function() {
+    this._build_event = function(eventtype) {
+        return 'event.' + this.objtype + '.' + eventtype;
+    };
+
+    this.handle_event = function(channel, msg) {
+        //override this function in your object
+    };
+
+    this.init_subscribe = function(functions) {
+        if(!this.thoonk.subscriptions.hasOwnProperty(this.name)) {
+            this.thoonk.once('subscribed.' + this._build_event(this.subscribables[this.subscribables.length - 1]), function() {
+                this.emit('subscribe_ready');
+            }.bind(this));
+            this.thoonk.subscriptions[this.name] = this.subscribables;
+            for(var subscribable in this.subscribables) {
+                this.thoonk.lredis.subscribe(this._build_event(this.subscribables[subscribable]));
+            }
+        }
+        if(!this.subinitted) {
+            for(var subscribable in this.subscribables) {
+                this.thoonk.on(this._build_event(this.subscribables[subscribable]), this.handle_event.bind(this));
+            }
+            this.subinitted = true;
+        }
+    };
+
+    this.runscript = function(scriptname, args, callback) {
+        this.thoonk._runscriptsingle(this.objtype, scriptname, args, function(err, results) {
+            if(err) {
+                console.log(scriptname, err);
+            } else {
+                if(callback) {
+                    callback.apply(this, results);
+                }
+            };
+        }.bind(this));
+    };
+}).call(ThoonkBaseInterface.prototype);
+
 exports.Thoonk = Thoonk;
 exports.ThoonkBaseObject = ThoonkBaseObject;
+exports.ThoonkBaseInterface = ThoonkBaseInterface;
+
 exports.createClient = function(host, port) {
     return new Thoonk(host, port);
 };
