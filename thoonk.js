@@ -160,6 +160,9 @@ var ThoonkBaseInterface = function(thoonk) {
     this.redis = this.thoonk.redis;
 };
 
+ThoonkBaseInterface.prototype = Object.create(EventEmitter.prototype);
+ThoonkBaseInterface.constructor = ThoonkBaseInterface;
+
 (function() {
     this._build_event = function(eventtype) {
         return 'event.' + this.objtype + '.' + eventtype;
