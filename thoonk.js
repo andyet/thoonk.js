@@ -44,10 +44,16 @@ Thoonk.prototype.constructor = Thoonk;
         this.lredis.quit();
     };
 
-    this.registerType = function(objname, theobject, callback) {
-        this.objects[objname] = function(name) {
-            return new theobject(name, this);
-        }.bind(this);
+    this.registerType = function(objname, theobject, callback, type) {
+        if(typeof type == 'undefined' || type == 'object') {
+            this.objects[objname] = function(name) {
+                return new theobject(name, this);
+            }.bind(this);
+        } else if (type == 'interface') {
+            this.objects[objname] = function() {
+                return new theobject(this);
+            }.bind(this);
+        }
         var dir = theobject.prototype.scriptdir;
         this.scripts[theobject.prototype.objtype] = {};
         this.shas[theobject.prototype.objtype] = {}
@@ -70,6 +76,10 @@ Thoonk.prototype.constructor = Thoonk;
                 }.bind(this));
             }
         }.bind(this));
+    };
+
+    this.registerInterface = function(objname, theobject, callback) {
+        return this.registerType(objname, theobject, callback, 'interface');
     };
 
     this.create = function() {
