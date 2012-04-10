@@ -206,8 +206,8 @@ ThoonkBaseInterface.constructor = ThoonkBaseInterface;
         //override this function in your object
     };
 
-    this.getEmitter = function(event_handler) {
-        return new Subscription(this.thoonk, this.objtype, undefined, this.subscribables, event_handler);
+    this.getEmitter = function(instance, event_handler) {
+        return new Subscription(this.thoonk, this.objtype, instance, this.subscribables, event_handler);
     };
 
     this.runscript = function(scriptname, args, callback) {
