@@ -82,9 +82,6 @@ Thoonk.prototype.constructor = Thoonk;
         return this.registerType(objname, theobject, callback, 'interface');
     };
 
-    this.create = function() {
-    };
-
     this._runscript = function(objtype, scriptname, feedname, args, callback) {
         args = [this.shas[objtype][scriptname], '0', feedname].concat(args);
         this.redis.send_command('EVALSHA', args, callback);
@@ -101,11 +98,65 @@ Thoonk.prototype.constructor = Thoonk;
 
 }).call(Thoonk.prototype);
 
+
+var Subscription = function(thoonk, objtype, instance, subscribables, event_handler) {
+    EventEmitter.call(this);
+    this.thoonk = thoonk;
+    this.instance = instance;
+    this.objtype = objtype;
+    this.sub = this.objtype + '::' + this.instance;
+    this.subscribables = subscribables;
+    this.init_subscribe(event_handler);
+};
+
+Subscription.prototype = Object.create(EventEmitter.prototype);
+Subscription.prototype.constructor = Subscription;
+
+(function() {
+
+    this._build_event = function(eventtype) {
+        if(this.instance) {
+            return 'event.' + this.objtype + '.' + eventtype + ':' + this.instance;
+        } else {
+            return 'event.' + this.objtype + '.' + eventtype;
+        }
+    };
+    
+    this.init_subscribe = function(event_handler) {
+        if(!this.thoonk.subscriptions.hasOwnProperty(this.sub)) {
+            this.thoonk.once('subscribed.' + this._build_event(this.subscribables[this.subscribables.length - 1]), function() {
+                this.emit('subscribe_ready');
+            }.bind(this));
+            this.thoonk.subscriptions[this.sub] = this.subscribables;
+            for(var subscribable in this.subscribables) {
+                this.thoonk.lredis.subscribe(this._build_event(this.subscribables[subscribable]));
+            }
+        }
+        if(!this.subinitted) {
+            for(var subscribable in this.subscribables) {
+                if(typeof event_handler != "undefined") {
+                    this.thoonk.on(this._build_event(this.subscribables[subscribable]), event_handler);
+                }
+                this.thoonk.on(this._build_event(this.subscribables[subscribable]), this.handle_event.bind(this));
+            }
+            this.subinitted = true;
+        }
+    };
+    
+    this.handle_event = function(channel, msg) {
+        this.emit(channel, msg);
+        this.emit('all', channel, msg);
+    };
+
+}).call(Subscription.prototype);
+
+
 var ThoonkBaseObject = function(name, thoonk) {
     EventEmitter.call(this);
     this.thoonk = thoonk;
     this.redis = this.thoonk.redis;
     this.name = name;
+    this.subscription = null;
     //TODO: create feed if it doesn't exist
 };
 
@@ -114,34 +165,20 @@ ThoonkBaseObject.constructor = ThoonkBaseObject;
 
 (function() {
 
-    this._build_event = function(eventtype) {
-        return 'event.' + this.objtype + '.' + eventtype + ':' + this.name
-    };
-
     this.handle_event = function(channel, msg) {
         //override this function in your object
     };
 
-    this.init_subscribe = function(functions) {
-        if(!this.thoonk.subscriptions.hasOwnProperty(this.name)) {
-            this.thoonk.once('subscribed.' + this._build_event(this.subscribables[this.subscribables.length - 1]), function() {
-                this.emit('subscribe_ready');
-            }.bind(this));
-            this.thoonk.subscriptions[this.name] = this.subscribables;
-            for(var subscribable in this.subscribables) {
-                this.thoonk.lredis.subscribe(this._build_event(this.subscribables[subscribable]));
-            }
-        }
-        if(!this.subinitted) {
-            for(var subscribable in this.subscribables) {
-                this.thoonk.on(this._build_event(this.subscribables[subscribable]), this.handle_event.bind(this));
-            }
-            this.subinitted = true;
-        }
+    this.init_subscribe = function() {
+        this.subscription = new Subscription(this.thoonk, this.objtype, this.name, this.subscribables, this.handle_event.bind(this));
+        this.subscription.once("subscribe_ready", function() {
+            this.emit("subscribe_ready");
+        }.bind(this));
     };
 
     this.runscript = function(scriptname, args, callback) {
         this.thoonk._runscript(this.objtype, scriptname, this.name, args, function(err, results) {
+            results =results.concat(['crap']);
             if(err) {
                 console.log(scriptname, err);
             } else {
@@ -154,6 +191,7 @@ ThoonkBaseObject.constructor = ThoonkBaseObject;
 
 }).call(ThoonkBaseObject.prototype);
 
+
 var ThoonkBaseInterface = function(thoonk) {
     EventEmitter.call(this);
     this.thoonk = thoonk;
@@ -164,30 +202,12 @@ ThoonkBaseInterface.prototype = Object.create(EventEmitter.prototype);
 ThoonkBaseInterface.constructor = ThoonkBaseInterface;
 
 (function() {
-    this._build_event = function(eventtype) {
-        return 'event.' + this.objtype + '.' + eventtype;
-    };
-
     this.handle_event = function(channel, msg) {
         //override this function in your object
     };
 
-    this.init_subscribe = function(functions) {
-        if(!this.thoonk.subscriptions.hasOwnProperty(this.name)) {
-            this.thoonk.once('subscribed.' + this._build_event(this.subscribables[this.subscribables.length - 1]), function() {
-                this.emit('subscribe_ready');
-            }.bind(this));
-            this.thoonk.subscriptions[this.name] = this.subscribables;
-            for(var subscribable in this.subscribables) {
-                this.thoonk.lredis.subscribe(this._build_event(this.subscribables[subscribable]));
-            }
-        }
-        if(!this.subinitted) {
-            for(var subscribable in this.subscribables) {
-                this.thoonk.on(this._build_event(this.subscribables[subscribable]), this.handle_event.bind(this));
-            }
-            this.subinitted = true;
-        }
+    this.getEmitter = function(event_handler) {
+        return new Subscription(this.thoonk, this.objtype, undefined, this.subscribables, event_handler);
     };
 
     this.runscript = function(scriptname, args, callback) {
