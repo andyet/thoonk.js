@@ -131,6 +131,8 @@ Subscription.prototype.constructor = Subscription;
             for(var subscribable in this.subscribables) {
                 this.thoonk.lredis.subscribe(this._build_event(this.subscribables[subscribable]));
             }
+        } else {
+            this.emit('subscribe_ready');
         }
         if(!this.subinitted) {
             for(var subscribable in this.subscribables) {
