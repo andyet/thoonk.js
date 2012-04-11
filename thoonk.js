@@ -121,6 +121,14 @@ Subscription.prototype.constructor = Subscription;
             return 'event.' + this.objtype + '.' + eventtype;
         }
     };
+
+    this._parse_channel = function(channel) {
+        if(this.instance) {
+            return channel.split(':')[0].split('.')[2];
+        } else {
+            return channel.split('.')[2];
+        }
+    };
     
     this.init_subscribe = function(event_handler) {
         if(!this.thoonk.subscriptions.hasOwnProperty(this.sub)) {
@@ -146,8 +154,8 @@ Subscription.prototype.constructor = Subscription;
     };
     
     this.handle_event = function(channel, msg) {
-        this.emit(channel, msg);
-        this.emit('all', channel, msg);
+        this.emit(this._parse_channel(channel), msg);
+        this.emit('all', this._parse_channel(channel), msg);
     };
 
 }).call(Subscription.prototype);
