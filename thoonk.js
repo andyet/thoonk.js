@@ -99,13 +99,14 @@ Thoonk.prototype.constructor = Thoonk;
 }).call(Thoonk.prototype);
 
 
-var Subscription = function(thoonk, objtype, instance, subscribables, event_handler) {
+var Subscription = function(thoonkobject, instance, event_handler) {
     EventEmitter.call(this);
-    this.thoonk = thoonk;
+    this.thoonk = thoonkobject.thoonk;
     this.instance = instance;
-    this.objtype = objtype;
+    this.objtype = thoonkobject.objtype;
+    this.thoonkobject = thoonkobject;
     this.sub = this.objtype + '::' + this.instance;
-    this.subscribables = subscribables;
+    this.subscribables = thoonkobject.subscribables;
     this.init_subscribe(event_handler);
 };
 
@@ -154,6 +155,9 @@ Subscription.prototype.constructor = Subscription;
     };
     
     this.handle_event = function(channel, msg) {
+        if(this.thoonkobject.event_content_type == 'json') {
+            msg = JSON.parse(msg);
+        }
         this.emit(this._parse_channel(channel), msg);
         this.emit('all', this._parse_channel(channel), msg);
     };
@@ -180,7 +184,7 @@ ThoonkBaseObject.constructor = ThoonkBaseObject;
     };
 
     this.init_subscribe = function() {
-        this.subscription = new Subscription(this.thoonk, this.objtype, this.name, this.subscribables, this.handle_event.bind(this));
+        this.subscription = new Subscription(this, this.name, this.handle_event.bind(this));
         this.subscription.once("subscribe_ready", function() {
             this.emit("subscribe_ready");
         }.bind(this));
@@ -217,7 +221,7 @@ ThoonkBaseInterface.constructor = ThoonkBaseInterface;
     };
 
     this.getEmitter = function(instance, event_handler) {
-        return new Subscription(this.thoonk, this.objtype, instance, this.subscribables, event_handler);
+        return new Subscription(this, instance, event_handler);
     };
 
     this.runscript = function(scriptname, args, callback) {
