@@ -155,9 +155,7 @@ Subscription.prototype.constructor = Subscription;
     };
     
     this.handle_event = function(channel, msg) {
-        if(this.thoonkobject.event_content_type == 'json') {
-            msg = JSON.parse(msg);
-        }
+        if (this.thoonkobject.handle_event) this.thoonkobject.handle_event.apply(this, arguments);
         this.emit(this._parse_channel(channel), msg);
         this.emit('all', this._parse_channel(channel), msg);
     };
