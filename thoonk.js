@@ -181,10 +181,13 @@ ThoonkBaseObject.constructor = ThoonkBaseObject;
         //override this function in your object
     };
 
-    this.init_subscribe = function() {
+    this.init_subscribe = function(callback) {
         this.subscription = new Subscription(this, this.name, this.handle_event.bind(this));
         this.subscription.once("subscribe_ready", function() {
             this.emit("subscribe_ready");
+            if(callback) {
+                callback(false, this.subscription);
+            }
         }.bind(this));
     };
 
@@ -218,8 +221,14 @@ ThoonkBaseInterface.constructor = ThoonkBaseInterface;
         //override this function in your object
     };
 
-    this.getEmitter = function(instance, event_handler) {
-        return new Subscription(this, instance, event_handler);
+    this.getEmitter = function(instance, event_handler, callback) {
+        var emitter = new Subscription(this, instance, event_handler);
+        if(callback) {
+            emmiter.once('subscribe_ready', function() {
+                callback(false, emitter);
+            }.bind(this));
+        }
+        return emitter;
     };
 
     this.runscript = function(scriptname, args, callback) {
