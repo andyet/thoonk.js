@@ -138,7 +138,9 @@ Subscription.prototype.constructor = Subscription;
             }.bind(this));
             this.thoonk.subscriptions[this.sub] = this.subscribables;
             for(var subscribable in this.subscribables) {
-                this.thoonk.lredis.subscribe(this._build_event(this.subscribables[subscribable]));
+                if(!this.thoonk.lredis.subscription_set['sub ' + this._build_event(this.subscribables[subscribable])]) {
+                    this.thoonk.lredis.subscribe(this._build_event(this.subscribables[subscribable]));
+                }
             }
         } else {
             this.emit('subscribe_ready');
@@ -155,9 +157,12 @@ Subscription.prototype.constructor = Subscription;
     };
     
     this.handle_event = function(channel, msg) {
-        if (this.thoonkobject.handle_event) this.thoonkobject.handle_event.apply(this, arguments);
-        this.emit(this._parse_channel(channel), msg);
-        this.emit('all', this._parse_channel(channel), msg);
+        if (this.thoonkobject.handle_event) {
+            this.thoonkobject.handle_event.apply(this, arguments);
+        } else {
+            this.emit(this._parse_channel(channel), msg);
+            this.emit('all', this._parse_channel(channel), msg);
+        }
     };
 
 }).call(Subscription.prototype);
@@ -224,7 +229,7 @@ ThoonkBaseInterface.constructor = ThoonkBaseInterface;
     this.getEmitter = function(instance, event_handler, callback) {
         var emitter = new Subscription(this, instance, event_handler);
         if(callback) {
-            emmiter.once('subscribe_ready', function() {
+            emitter.once('subscribe_ready', function() {
                 callback(false, emitter);
             }.bind(this));
         }
