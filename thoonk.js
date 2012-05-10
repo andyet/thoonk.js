@@ -31,6 +31,8 @@ var Thoonk = function(host, port) {
     this.subscriptions = {};
 
     this.objects = {};
+
+    this._blocking = {};
 };
 
 Thoonk.prototype = Object.create(EventEmitter.prototype);
@@ -46,7 +48,7 @@ Thoonk.prototype.constructor = Thoonk;
 
     this.registerType = function(objname, theobject, callback, type) {
         if(typeof type == 'undefined' || type == 'object') {
-            this.objects[objname] = function(name) {
+            this.objects[objname] = function objFactory(name) {
                 return new theobject(name, this);
             }.bind(this);
         } else if (type == 'interface') {
@@ -59,7 +61,7 @@ Thoonk.prototype.constructor = Thoonk;
         this.shas[theobject.prototype.objtype] = {}
         var curdir = fs.readdirSync(dir);
         curdir = curdir.filter(function(fname) { return fname.substr(-4) == '.lua'; });
-        curdir.forEach(function(filename, fidx, curdir) {
+        curdir.forEach(function scriptLoader(filename, fidx, curdir) {
             var last = (fidx + 1 == curdir.length);
             if(path.extname(filename) == '.lua') {
                 var verbname = path.basename(filename).slice(0,-4);
@@ -92,8 +94,10 @@ Thoonk.prototype.constructor = Thoonk;
         this.redis.send_command('EVALSHA', args, callback);
     };
 
-    this.feed = function(name, config) {
-        return new Feed(name);
+    this._get_blocking_redis = function (name) {
+        if (this._blocking[name]) return this._blocking[name];
+        this._blocking[name] = redis.createClient(this.port, this.host);
+        return this._blocking[name];
     };
 
 }).call(Thoonk.prototype);
@@ -198,7 +202,6 @@ ThoonkBaseObject.constructor = ThoonkBaseObject;
 
     this.runscript = function(scriptname, args, callback) {
         this.thoonk._runscript(this.objtype, scriptname, this.name, args, function(err, results) {
-            results =results.concat(['crap']);
             if(err) {
                 console.log(scriptname, err);
             } else {
