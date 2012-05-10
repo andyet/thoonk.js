@@ -3,8 +3,8 @@
  * Released under the terms of the MIT License
  */
 
-var Feed = require("./feed.js").Feed,
-    Queue = require("./queue.js").Queue,
+var thoonkmodule = require('./thoonk'),
+    // Queue = require("./queue.js").Queue,
     uuid = require("node-uuid"),
     redis = require('redis'),
     fs = require('fs');
@@ -72,14 +72,13 @@ var Feed = require("./feed.js").Feed,
  *     feed   -- The name of the feed.
  *     config -- Optional dictionary of configuration values.
  */
-function Job(thoonk, name, config) {
-    Feed.call(this, thoonk, name, config, 'job');
-    this.bredis = this.thoonk._get_blocking_redis(name);
-    this.cancel = this.thoonk.lock.require(jobCancel, this);
-    this.stall = this.thoonk.lock.require(jobStall, this);
-    this.retry = this.thoonk.lock.require(jobRetry, this);
+function Job(name, thoonk, config) {
 
-    this.script = {};
+    thoonkmodule.ThoonkBaseObject.call(this, name, thoonk);
+    this.bredis = this.thoonk._get_blocking_redis(name);
+    this.lredis = this.thoonk.lredis;
+
+    this.subscribables = ['publish', 'edit', 'retract', 'finish', 'retry', 'stall'];
 
     this.thoonk.on('job.finish:' + this.name, function(feed, id, result) {
         this.emit('job.id.finish:' + id, null, feed, id, result);
@@ -91,25 +90,6 @@ function Job(thoonk, name, config) {
     }.bind(this));
 }
 
-//override feedReady to wait until we're subscribed to the job.finish channel
-function jobReady() {
-    var publish_lua = fs.readFileSync('script/jobs/publish.lua');
-    var get_lua = fs.readFileSync('script/jobs/get.lua');
-    var finish_lua = fs.readFileSync('script/jobs/finish.lua');
-    this.mredis.send_command('SCRIPT', ['LOAD', publish_lua], function(err, reply) {
-        this.script['publish'] = reply;
-        this.mredis.send_command('SCRIPT', ['LOAD', get_lua], function(err, reply) {
-            this.script['get'] = reply;
-            this.mredis.send_command('SCRIPT', ['LOAD', finish_lua], function(err, reply) {
-                this.script['finish'] = reply;
-                this.thoonk.once('subscribe:' + 'job.finish:' + this.name, function() {
-                    this.emit("ready");
-                }.bind(this));
-                this.lredis.subscribe('job.finish:' + this.name);
-            }.bind(this));
-        }.bind(this));
-    }.bind(this));
-}
 
 /**
  * Add a new job to the queue.
@@ -132,12 +112,11 @@ function jobPublish(item, callback, high_priority, id, finish_callback) {
     if(id === undefined || id === null) {
         var id = uuid();
     }
+    var args = [id, JSON.stringify(item), ''+Date.now(), high_priority];
     if(finish_callback) {
         this.once('job.id.finish:' + id, finish_callback);
     }
-    this.mredis.send_command('evalsha', [this.script.publish, '0', this.name, id, item, Date.now(), null], function(err, reply) {
-        callback(null, item, id);
-    }.bind(this));
+    this.runscript('publish', args, callback);
 }
 
 /**
@@ -154,10 +133,11 @@ function jobPublish(item, callback, high_priority, id, finish_callback) {
  *     timeout -- Flag indicating that the request timed out.
  */
 function jobGet(timeout, callback) {
+    console.log('job.get called');
     if(!timeout) timeout = 0;
-    this.bredis.send_command('evalsha', [this.script.get, '0', this.name, timeout, Date.now()], function(err, reply) {
-        callback(null, reply[0], reply[1], reply[2]);
-    }.bind(this));
+    this.bredis.brpop(this.name, timeout, function (err, item, id) {
+        console.log('job brpop cb args: ', arguments);
+    });
 }
 
 /**
@@ -173,14 +153,7 @@ function jobGet(timeout, callback) {
  *     id    -- The ID of the finished job.
  */
 function jobFinish(id, callback, setresult) {
-    this.mredis.send_command('evalsha', [this.script.finish, '0', this.name, id, setresult], function(err, reply) {
-        /*if(setresult) {
-            this.mredis.publish('job.finish:' + this.name, id + '\x00' + setresult);
-        }*/
-        if(callback) {
-            callback(null, id);
-        }
-    }.bind(this));
+    // this.runscript
 }
 
 /**
@@ -195,30 +168,7 @@ function jobFinish(id, callback, setresult) {
  *     id    -- The ID of the cancelled job.
  */
 function jobCancel(id, callback) {
-    this.mredis.watch("feed.claimed:" + this.name);
-    this.mredis.zrank("feed.claimed:" + this.name, id, function(err, result) {
-        if(result == null) {
-            this.mredis.unwatch(function(err, reply) {
-                this.thoonk.lock.unlock();
-                if(callback) { callback("id unclaimed", id); }
-            }.bind(this));
-        } else {
-            this.mredis.multi()
-                .hincrby("feed.cancelled:" + this.name, id, 1)
-                .lpush("feed.ids:" + this.name, id)
-                .zrem("feed.claimed:" + this.name, id)
-            .exec(function(err, reply) {
-                this.thoonk.lock.unlock();
-                if(err || !reply) {
-                    process.nextTick(function() {
-                        this.cancel(id, callback);
-                    }.bind(this));
-                } else {
-                    if(callback) { callback(null, id); }
-                }
-            }.bind(this));
-        }
-    }.bind(this));
+    
 }
 
 /**
@@ -235,31 +185,7 @@ function jobCancel(id, callback) {
  *     id    -- The ID of the stalled job.
  */
 function jobStall(id, callback) {
-    this.mredis.watch("feed.claimed:" + this.name);
-    this.mredis.zrank("feed.claimed:" + this.name, id, function(err, result) {
-        if(result == null) {
-            this.mredis.unwatch(function(err, reply) {
-                this.thoonk.lock.unlock();
-                if(callback) { callback("id already claimed", id); }
-            }.bind(this));
-        } else {
-            this.mredis.multi()
-                .zrem("feed.claimed:" + this.name, id)
-                .hdel("feed.cancelled:" + this.name, id)
-                .sadd("feed.stalled:" + this.name, id)
-                .zrem("feed.published:" + this.name, id)
-            .exec(function(err, reply) {
-                this.thoonk.lock.unlock();
-                if(!reply) {
-                    process.nextTick(function() {
-                        this.stall(id, callback);
-                    }.bind(this));
-                } else {
-                    if(callback) { callback(null, id); }
-                }
-            }.bind(this));
-        }
-    }.bind(this));
+    
 }
 
 /**
@@ -274,30 +200,7 @@ function jobStall(id, callback) {
  *     id    -- The ID of the resumed job.
  */
 function jobRetry(id, callback) {
-    this.mredis.watch("feed.stalled:" + this.name);
-    this.mredis.sismember("feed.stalled:" + this.name, id, function(err, result) {
-        if(result == null) {
-            this.mredis.unwatch(function(err, reply) {
-                this.thoonk.lock.unlock();
-                if(callback) { callback("id not stalled", id); }
-            }.bind(this));
-        } else {
-            this.mredis.multi()
-                .srem("feed.stalled:" + this.name, id)
-                .lpush("feed.ids:" + this.name, id)
-                .zadd("feed.published:" + this.name, Date.now(), id)
-            .exec(function(err, reply) {
-                this.thoonk.lock.unlock();
-                if(!reply) {
-                    process.nextTick(function() {
-                        this.retry(id, callback);
-                    }.bind(this));
-                } else {
-                    if(callback) { callback(null, id); }
-                }
-            }.bind(this));
-        }
-    }.bind(this));
+    
 }
 
 /**
@@ -312,7 +215,7 @@ function jobRetry(id, callback) {
  *     num   -- The number of times the job has been cancelled.
  */
 function jobGetNumOfFailures(id, callback) {
-    this.mredis.hget("feed.cancelled:" + this.name, id, callback);
+    this.redis.hget("feed.cancelled:" + this.name, id, callback);
 }
 
 /**
@@ -327,42 +230,13 @@ function jobGetNumOfFailures(id, callback) {
  *     id    -- The ID of the deleted job.
  */
 function jobRetract(id, callback) {
-    this.mredis.watch("feed.items:" + this.name);
-    this.mredis.hexists("feed.items:" + this.name, id, function(err, result) {
-        if(result == null) {
-            this.mredis.unwatch(function(err, reply) {
-                this.thoonk.lock.unlock();
-                if(callback) { callback("id not found", id); }
-            }.bind(this));
-        } else {
-            this.mredis.multi()
-                .hdel('feed:items:' + this.name, id)
-                .hdel('feed.cancelled:' + this.name, id)
-                .zrem('feed.published:' + this.name, id)
-                .srem('feed.stalled:' + this.name, id)
-                .zrem('feed.claimed:' + this.name, id)
-                .lrem('feed.ids:' + this.name, 1, id)
-            .exec(function(err, reply) {
-                this.thoonk.lock.unlock();
-                if(err || !reply) {
-                    process.nextTick(function() {
-                        this.retact(id, callback);
-                    }.bind(this));
-                } else {
-                    if(callback) { callback(null, id); }
-                }
-            }.bind(this));
-        }
-    }.bind(this));
+    
 }
 
-Job.super_ = Feed;
-Job.prototype = Object.create(Feed.prototype, {
-    constructor: {
-        value: Job,
-        enumerable: false
-    }
-});
+Job.prototype = thoonkmodule.ThoonkBaseObject.prototype;
+Job.prototype.constructor = Job;
+Job.prototype.objtype = 'job';
+Job.prototype.scriptdir = __dirname + '/scripts/job';
 
 Job.prototype.put = jobPublish;
 Job.prototype.publish = jobPublish;
@@ -373,6 +247,6 @@ Job.prototype.stall = jobStall;
 Job.prototype.retry = jobRetry;
 Job.prototype.retract = jobRetract;
 Job.prototype.getNumOfFailures = jobGetNumOfFailures;
-Job.prototype.ready = jobReady;
+// Job.prototype.ready = jobReady;
 
 exports.Job = Job;
