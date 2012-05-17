@@ -237,7 +237,7 @@ function jobGetNumOfFailures(id, callback) {
  *     id    -- The ID of the deleted job.
  */
 function jobRetract(id, callback) {
-    
+    this.runscript('retract', [id], callback);
 }
 
 Job.prototype = thoonkmodule.ThoonkBaseObject.prototype;
