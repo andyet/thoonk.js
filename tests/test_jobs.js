@@ -6,6 +6,7 @@ var tests = new TestObject([
     "publish: item1",
     "publish: item2",
     "publish: item3",
+    "publish: item4",
 ], function(config) {
     var thoonk = new Thoonk(config.host, config.port, config.db);
     thoonk.registerType('Job', Job, function() {
@@ -20,7 +21,7 @@ var tests = new TestObject([
                 tests.should("publish: " + JSON.parse(item));
                 tests.add("job: " + id);
             });
-            testjob.get(1, function(err, item, id) {
+            testjob.get(0, function(err, item, id) {
                 // console.log('item1 job.get cb:', arguments);
                 tests.should("job: " + id);
                 testjob.finish(id);
@@ -45,10 +46,11 @@ var tests = new TestObject([
             //test publish->get->stall->retry->get->finish
             testjob.publish("item3", function(err, item, id) {
                 tests.should("publish: " + JSON.parse(item));
-                tests.add("stall: " + id);
                 tests.add("job: " + id);
+                tests.add("stall: " + id);
+                tests.add("retry: " + id);
                 tests.add("finish: " + id);
-                tests.add("finished:" + id);
+                tests.add("finished: " + id);
             }, null, null, function(err, feed, id, result) {
                 tests.should('finished:' + id);
             });
@@ -56,20 +58,41 @@ var tests = new TestObject([
                 tests.should("stall: " + id);
                 testjob.stall(id, function(err_msg, id) {
                     tests.test(!err_msg, err_msg);
+                    tests.should("retry: " + id)
                     testjob.retry(id, function(err_msg, id) {
                         tests.test(!err_msg, err_msg);
                         tests.should("job: " + id);
+                        tests.should("finished: " + id);
+                        tests.should("finish: " + id);
                         testjob.get(0, function(err, item, id) {
-                            testjob.finish(id, function(err_msg, id) {
+                            testjob.finish(id, function(err_msg, id, result) {
                                 tests.test(!err_msg, err_msg);
-                                tests.should("finished:" + id);
-                                tests.should("finish: " + id);
+                                tests.test(result, "expected result: 'weee'");
                             }, "weee");
                         });
                     });
                 });
             });
-        // });
+            // test cancel -> getNumOfFailures -> retract
+            testjob.publish("item4", function (err, item, id) {
+                tests.should("publish: " + JSON.parse(item));
+                tests.add("job: " + id);
+                tests.add("cancel: " + id);
+                tests.add("retract: " + id);
+            });
+            testjob.get(0, function (err, item, id) {
+                tests.should("job: " + id);
+                testjob.cancel(id, function (err_msg, id) {
+                    tests.test(!err_msg, err_msg);
+                    tests.should("cancel: " + id);
+                    testjob.getNumOfFailures(id, function (err_msg, count) {
+                        tests.compare(1, count);
+                        testjob.retract(id, function (err_msg, id) {
+                            tests.should("retract: " + id);
+                        });
+                    });
+                });
+            });
     });
 });
 
