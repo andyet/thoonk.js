@@ -4,7 +4,6 @@
  */
 
 var thoonkmodule = require('./thoonk'),
-    // Queue = require("./queue.js").Queue,
     uuid = require("node-uuid"),
     redis = require('redis'),
     fs = require('fs');
@@ -112,7 +111,8 @@ function jobPublish(item, callback, high_priority, id, finish_callback) {
     if(id === undefined || id === null) {
         var id = uuid();
     }
-    var args = [id, JSON.stringify(item), ''+Date.now(), high_priority];
+    var args = [id, JSON.stringify(item), ''+Date.now()];
+    if (high_priority) args.push(high_priority);
     if(finish_callback) {
         this.once('job.id.finish:' + id, finish_callback);
     }
@@ -133,11 +133,15 @@ function jobPublish(item, callback, high_priority, id, finish_callback) {
  *     timeout -- Flag indicating that the request timed out.
  */
 function jobGet(timeout, callback) {
-    console.log('job.get called');
-    if(!timeout) timeout = 0;
-    this.bredis.brpop(this.name, timeout, function (err, item, id) {
-        console.log('job brpop cb args: ', arguments);
-    });
+    this.bredis.brpop("job.ids:"+this.name, timeout||0, function (err, args) {
+        // console.log('job.get brpop cb: ', arguments);
+        if (args && args[1]) {
+            // console.log('id is', args[1]);
+            this.runscript('get', [args[1], ''+Date.now()], callback);
+        } else {
+            callback(null, null, null, true);
+        }
+    }.bind(this));
 }
 
 /**
@@ -153,7 +157,10 @@ function jobGet(timeout, callback) {
  *     id    -- The ID of the finished job.
  */
 function jobFinish(id, callback, setresult) {
-    // this.runscript
+    var args = [id];
+    if (setresult) args.push(setresult);
+    console.log('jobFinish args', args);
+    this.runscript('finish', args, callback);
 }
 
 /**
@@ -168,7 +175,7 @@ function jobFinish(id, callback, setresult) {
  *     id    -- The ID of the cancelled job.
  */
 function jobCancel(id, callback) {
-    
+    this.runscript('cancel', [id], callback);
 }
 
 /**
@@ -185,7 +192,7 @@ function jobCancel(id, callback) {
  *     id    -- The ID of the stalled job.
  */
 function jobStall(id, callback) {
-    
+    this.runscript('stall', [id], callback);
 }
 
 /**
@@ -200,7 +207,7 @@ function jobStall(id, callback) {
  *     id    -- The ID of the resumed job.
  */
 function jobRetry(id, callback) {
-    
+    this.runscript('retry', [id], callback);
 }
 
 /**
