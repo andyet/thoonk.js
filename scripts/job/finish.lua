@@ -10,9 +10,8 @@ redis.call('incr', 'job.finishes:'..name)
 redis.call('publish', 'job.finish:'..name, id)
 redis.call('hdel', 'job.items:'..name, id)
 if result then
-    redis.call('publish', 'job.finish-with-result:'..name, id)
-    return {nil, id, result}
+    redis.call('publish', 'job.finish-with-result:'..name, id);
+    return {false, id, result};
 else
-    return {nil, id}
+    return {false, id};
 end
-

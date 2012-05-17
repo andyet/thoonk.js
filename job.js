@@ -159,7 +159,6 @@ function jobGet(timeout, callback) {
 function jobFinish(id, callback, setresult) {
     var args = [id];
     if (setresult) args.push(setresult);
-    console.log('jobFinish args', args);
     this.runscript('finish', args, callback);
 }
 
