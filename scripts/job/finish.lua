@@ -1,12 +1,18 @@
 -- ARGV: name, id, result
-if redis.call('zrem', 'job.claimed:'..ARGV[1], ARGV[2]) == 0 then
-    return false;
+local name, id, result = unpack(ARGV);
+
+if redis.call('zrem', 'job.claimed:'..name, id) == 0 then
+    return {'Job not claimed', false};
 end
-redis.call('hdel', 'job.cancelled:'..ARGV[1], ARGV[2])
-redis.call('zrem', 'job.published:'..ARGV[1], ARGV[2])
-redis.call('incr', 'job.finishes:'..ARGV[1])
-if ARGV[3] then
-    redis.call('publish', 'job.finish:'..ARGV[1], ARGV[2].."\0"..ARGV[3])
+redis.call('hdel', 'job.cancelled:'..name, id)
+redis.call('zrem', 'job.published:'..name, id)
+redis.call('incr', 'job.finishes:'..name)
+redis.call('publish', 'job.finish:'..name, id)
+redis.call('hdel', 'job.items:'..name, id)
+if result then
+    redis.call('publish', 'job.finish-with-result:'..name, id)
+    return {nil, id, result}
+else
+    return {nil, id}
 end
-redis.call('hdel', 'job.items:'..ARGV[1], ARGV[2])
-return true
+

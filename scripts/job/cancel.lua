@@ -1,7 +1,8 @@
 -- ARGV: name, id
-if redis.call('zrem', 'job.claimed:'..ARGV[1], ARGV[2]) == 0 then
-    return false
+local name, id = unpack(ARGV)
+if redis.call('zrem', 'job.claimed:'..name, id) == 0 then
+    return {'No job found!'}
 end
-redis.call('hincrby', 'job.cancelled:'..ARGV[1], ARGV[2], 1)
-redis.call('lpush', 'job.ids:'..ARGV[1], ARGV[2])
-return true
+redis.call('hincrby', 'job.cancelled:'..name, id, 1)
+redis.call('lpush', 'job.ids:'..name, id)
+return {false, id}
