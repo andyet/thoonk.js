@@ -62,6 +62,7 @@ var tests = new TestObject([
                         testjob.get(0, function(err, item, id) {
                             testjob.finish(id, function(err_msg, id) {
                                 tests.test(!err_msg, err_msg);
+                                tests.should("finished:" + id);
                                 tests.should("finish: " + id);
                             }, "weee");
                         });
