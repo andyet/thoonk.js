@@ -207,7 +207,7 @@ function jobStall(id, callback) {
  *     id    -- The ID of the resumed job.
  */
 function jobRetry(id, callback) {
-    this.runscript('retry', [id], callback);
+    this.runscript('retry', [id, ''+Date.now()], callback);
 }
 
 /**
@@ -222,7 +222,7 @@ function jobRetry(id, callback) {
  *     num   -- The number of times the job has been cancelled.
  */
 function jobGetNumOfFailures(id, callback) {
-    this.redis.hget("feed.cancelled:" + this.name, id, callback);
+    this.redis.hget("job.cancelled:" + this.name, id, callback);
 }
 
 /**
