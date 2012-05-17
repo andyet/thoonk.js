@@ -8,4 +8,4 @@ redis.call('zrem', 'job.published:'..name, id)
 redis.call('srem', 'job.stalled:'..name, id)
 redis.call('zrem', 'job.claimed:'..name, id)
 redis.call('lrem', 'job.ids:'..name, 1, id)
-return {nil, id}
+return {false, id}
