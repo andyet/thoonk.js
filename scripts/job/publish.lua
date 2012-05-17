@@ -1,9 +1,9 @@
 -- ARGV: name, id, item, time, priority
 local name, id, item, time, priority = unpack(ARGV)
-if priority == nil then
-    redis.call('lpush', 'job.ids:'..name, id);
-else
+if priority ~= nil then
     redis.call('rpush', 'job.ids:'..name, id);
+else
+    redis.call('lpush', 'job.ids:'..name, id);
 end
 redis.call('incr', 'job.publishes:'..name);
 redis.call('hset', 'job.items:'..name, id, item);
