@@ -44,6 +44,11 @@ Thoonk.prototype.constructor = Thoonk;
     this.quit = function() {
         this.redis.quit();
         this.lredis.quit();
+        for (key in this._blocking) {
+            if (this._blocking[key] && this._blocking[key].quit) {
+                this._blocking[key].quit();
+            }
+        }
     };
 
     this.registerType = function(objname, theobject, callback, type) {
