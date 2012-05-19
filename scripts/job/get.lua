@@ -1,4 +1,5 @@
 -- ARGV: name, id, time
-local r1 = redis.call('zadd', 'feed.claimed:'..ARGV[1], ARGV[3], ARGV[2]);
-local r2 = redis.call('hget', 'feed.items:'..ARGV[1], ARGV[2]);
-return {r1, r2}
+local name, id, time = unpack(ARGV);
+local r1 = redis.call('zadd', 'job.claimed:'..name, time, id);
+local r2 = redis.call('hget', 'job.items:'..name, id);
+return {r1, r2, id}

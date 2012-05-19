@@ -1,9 +1,12 @@
 -- ARGV: name, id, item, time, priority
-if ARGV[5] == nil then
-    redis.call('lpush', 'feed.ids:'..ARGV[1], ARGV[2]);
+local name, id, item, time, priority = unpack(ARGV)
+if priority ~= nil then
+    redis.call('rpush', 'job.ids:'..name, id);
 else
-    redis.call('rpush', 'feed.ids:'..ARGV[1], ARGV[2]);
+    redis.call('lpush', 'job.ids:'..name, id);
 end
-redis.call('incr', 'feed.publishes:'..ARGV[1]);
-redis.call('hset', 'feed.items:'..ARGV[1], ARGV[2], ARGV[3]);
-return redis.call('zadd', 'feed.published:'..ARGV[1], ARGV[4], ARGV[2]);
+redis.call('incr', 'job.publishes:'..name);
+redis.call('hset', 'job.items:'..name, id, item);
+redis.call('zadd', 'job.published:'..name, time, id);
+-- return {false, ARGV[3], ARGV[2]};
+return {false, item, id}
