@@ -77,16 +77,9 @@ function Job(name, thoonk, config) {
     this.bredis = this.thoonk._get_blocking_redis(name);
     this.lredis = this.thoonk.lredis;
 
-    this.subscribables = ['publish', 'edit', 'retract', 'finish', 'retry', 'stall'];
+    this.subscribables = ['publish', 'retract', 'finish', 'retry', 'stall'];
 
-    this.thoonk.on('job.finish:' + this.name, function(feed, id, result) {
-        this.emit('job.id.finish:' + id, null, feed, id, result);
-    }.bind(this));
-
-    this.thoonk.on('quit', function() {
-        this.lredis.unsubscribe('job.finish:' + this.name);
-        this.bredis.quit();
-    }.bind(this));
+    this.subinitted = false;
 }
 
 
@@ -134,9 +127,7 @@ function jobPublish(item, callback, high_priority, id, finish_callback) {
  */
 function jobGet(timeout, callback) {
     this.bredis.brpop("job.ids:"+this.name, timeout||0, function (err, args) {
-        // console.log('job.get brpop cb: ', arguments);
         if (args && args[1]) {
-            // console.log('id is', args[1]);
             this.runscript('get', [args[1], ''+Date.now()], callback);
         } else {
             callback(null, null, null, true);
@@ -254,5 +245,14 @@ Job.prototype.retry = jobRetry;
 Job.prototype.retract = jobRetract;
 Job.prototype.getNumOfFailures = jobGetNumOfFailures;
 // Job.prototype.ready = jobReady;
+Job.prototype.handle_event = function jobHandleEvent(channel, msg) {
+    var objsplit = channel.split(':');
+    var typesplit = objsplit[0].split('.');
+    var eventname = typesplit[2];
+    if(~['publish','finish'].indexOf(eventname)) {
+        var msgsplit = msg.split('\x00');
+        this.emit('job.id.'+eventname+':'+msgsplit[0], null, msgsplit[0], msgsplit[1]||null);
+    }
+};
 
 exports.Job = Job;
