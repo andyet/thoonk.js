@@ -510,7 +510,7 @@ function feedDelete (callback) {
                     }.bind(this));
                 } else {
                     if(callback) {
-                        callback('Success', this.name);
+                        callback(null, this.name);
                     }
                 }
             }.bind(this));
