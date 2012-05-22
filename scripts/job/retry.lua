@@ -1,7 +1,8 @@
 -- ARGV: name, id, time
-if redis.call('srem', 'feed.stalled:'..ARGV[1], ARGV[2]) == 0 then
-    return false;
+local name, id, time = unpack(ARGV);
+if redis.call('srem', 'job.stalled:'..name, id) == 0 then
+    return {'Job not stalled', id};
 end
-redis.call('lpush', 'feed.ids:'..ARGV[1], ARGV[2]);
-redis.call('zadd', 'feed.published:'..ARGV[1], ARGV[3], ARGV[2]);
-return true
+redis.call('lpush', 'job.ids:'..name, id);
+redis.call('zadd', 'job.published:'..name, time, id);
+return {false, id}

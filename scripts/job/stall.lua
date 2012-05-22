@@ -1,8 +1,9 @@
 -- ARGV: name, id
-if redis.call('zrem', 'feed.claimed:'..ARGV[1], ARGV[2]) == 0 then
-    return false;
+local name, id = unpack(ARGV);
+if redis.call('zrem', 'job.claimed:'..name, id) == 0 then
+    return {'Job not claimed', id};
 end
-redis.call('hdel', 'feed.cancelled:'..ARGV[1], ARGV[2]);
-redis.call('sadd', 'feed.stalled:'..ARGV[1], ARGV[2]);
-redis.call('zrem', 'feed.published'..ARGV[1], ARGV[2]);
-return true
+redis.call('hdel', 'job.cancelled:'..name, id);
+redis.call('sadd', 'job.stalled:'..name, id);
+redis.call('zrem', 'job.published'..name, id);
+return {false, id}
