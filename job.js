@@ -44,7 +44,7 @@ var Feed = require("./feed.js").Feed,
  *     feed.claimed:[feed]   -- A hash table of claimed jobs.
  *     feed.stalled:[feed]   -- A hash table of stalled jobs.
  *     feeed.funning:[feed]  -- A hash table of running jobs.
- *     feed.finished:[feed]\x00[id] -- Temporary queue for receiving job
+ *     feed.jobfinished:[feed]\x00[id] -- Temporary queue for receiving job
  *                                     result data.
  * 
  * Thoonk Standard API:
