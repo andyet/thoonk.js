@@ -74,6 +74,11 @@ var Feed = require("./feed.js").Feed,
 function Job(thoonk, name, config) {
     Feed.call(this, thoonk, name, config, 'job');
     this.bredis = redis.createClient(this.thoonk.port, this.thoonk.host);
+    if (this.thoonk.password) {
+        this.bredis.auth(this.thoonk.password, function (err) {
+            if (err) { throw err; }
+        });
+    }
     this.bredis.select(this.thoonk.db);
     this.publish = this.thoonk.lock.require(jobPublish, this);
     this.put = this.thoonk.lock.require(jobPublish, this);

@@ -20,19 +20,33 @@ var Feed = exports.Feed = require("./feed.js").Feed,
  * 
  * @param host
  * @param port
+ * @param db
+ * @param password
  */
-var Thoonk = exports.Thoonk = function Thoonk(host, port, db) {
+var Thoonk = exports.Thoonk = function Thoonk(host, port, db, password) {
     host || (host = "127.0.0.1");
     port || (port = 6379);
     db || (db = 0);
+    password || (password = "");
     this.host = host;
     this.port = port;
     this.db = db;
+    this.password = password;
     EventEmitter.call(this);
     this.lredis = redis.createClient(port, host);
+    if (password) {
+        this.lredis.auth(password, function (err) {
+            if (err) { throw err; }
+        });
+    }
     this.lredis.select(db);
     this.lredis.subscribe("newfeed", "delfeed", "conffeed");
     this.mredis = redis.createClient(port, host);
+    if (password) {
+        this.mredis.auth(password, function (err) {
+            if (err) { throw err; }
+        });
+    }
     this.mredis.select(db);
     this.lock = new padlock.Padlock();
 
@@ -416,10 +430,10 @@ Thoonk.prototype.getFeedNames = function(callback, error_callback) {
  * Shortcut function to make creating a Thoonk instance
  * easier, as so:
  *
- *     var pubsub = require("thoonk").createClient(host, port, db);
+ *     var pubsub = require("thoonk").createClient(host, port, db, password);
  */
-exports.createClient = function(host, port, db) {
-    return new Thoonk(host, port, db);
+exports.createClient = function(host, port, db, password) {
+    return new Thoonk(host, port, db, password);
 }
 
-exports.VERSION = '0.5.1';
+exports.VERSION = '0.5.3';

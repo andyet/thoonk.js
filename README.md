@@ -66,11 +66,11 @@ configured. Then run:
 ## Initializing ##
 
     var Thoonk = require("thoonk").Thoonk;
-    var thoonk = new Thoonk(host, port, db)
+    var thoonk = new Thoonk(host, port, db, password)
 
 Or, you can use:
 
-    var thoonk = require("thoonk").createClient(host, port, db);
+    var thoonk = require("thoonk").createClient(host, port, db, password);
 
 ## Creating a Feed ##
 
