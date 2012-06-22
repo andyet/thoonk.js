@@ -4,6 +4,7 @@
  */
 
 var Feed = require("./feed.js").Feed,
+    redis = require("redis"),
     uuid = require("node-uuid");
 
 /**
