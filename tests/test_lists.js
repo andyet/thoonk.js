@@ -19,7 +19,7 @@ var tests = new TestObject([
     "position:6 :end",
     'edit:6: neehawedit',
 ], function(config) {
-    var thoonk = new Thoonk(config.host, config.port, config.db);
+    var thoonk = new Thoonk(config.host, config.port, config.db, config.password);
     tests.on("done", function() {
         thoonk.quit();
     });

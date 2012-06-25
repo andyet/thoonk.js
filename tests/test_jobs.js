@@ -6,7 +6,7 @@ var tests = new TestObject([
     "publish: item2",
     "publish: item3",
 ], function(config) {
-    var thoonk = new Thoonk(config.host, config.port, config.db);
+    var thoonk = new Thoonk(config.host, config.port, config.db, config.password);
     tests.on("done", function() {
         thoonk.quit();
     });
