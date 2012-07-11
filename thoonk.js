@@ -108,10 +108,11 @@ Thoonk.prototype.constructor = Thoonk;
 }).call(Thoonk.prototype);
 
 
-var Subscription = function(thoonkobject, instance, event_handler) {
+var Subscription = function(thoonkobject, instance, event_handler, callback) {
     EventEmitter.call(this);
     this.thoonk = thoonkobject.thoonk;
     this.instance = instance;
+    this.callback = callback;
     this.objtype = thoonkobject.objtype;
     this.thoonkobject = thoonkobject;
     this.sub = this.objtype + '::' + this.instance;
@@ -144,6 +145,9 @@ Subscription.prototype.constructor = Subscription;
         if(!this.thoonk.subscriptions.hasOwnProperty(this.sub)) {
             this.thoonk.once('subscribed.' + this._build_event(this.subscribables[this.subscribables.length - 1]), function() {
                 this.emit('subscribe_ready');
+                if(this.callback) { 
+                    process.nextTick(this.callback);
+                }
             }.bind(this));
             this.thoonk.subscriptions[this.sub] = this.subscribables;
             for(var subscribable in this.subscribables) {
@@ -153,6 +157,9 @@ Subscription.prototype.constructor = Subscription;
             }
         } else {
             this.emit('subscribe_ready');
+                if(this.callback) { 
+                    process.nextTick(this.callback);
+                }
         }
         if(!this.subinitted) {
             for(var subscribable in this.subscribables) {
@@ -196,13 +203,19 @@ ThoonkBaseObject.constructor = ThoonkBaseObject;
     };
 
     this.init_subscribe = function(callback) {
-        this.subscription = new Subscription(this, this.name, this.handle_event.bind(this));
-        this.subscription.once("subscribe_ready", function() {
+        if(!this.subscription) {
+            this.subscription = new Subscription(this, this.name, this.handle_event.bind(this), function() {
+                this.emit("subscribe_ready");
+                if(callback) {
+                    callback(false, this.subscription);
+                }
+            }.bind(this));
+        } else {
             this.emit("subscribe_ready");
             if(callback) {
                 callback(false, this.subscription);
             }
-        }.bind(this));
+        }
     };
 
     this.runscript = function(scriptname, args, callback) {
