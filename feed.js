@@ -6,7 +6,7 @@ var Feed = function(name, thoonk) {
     this.subinitted = false;
 };
 
-Feed.prototype = thoonkmodule.ThoonkBaseObject.prototype;
+Feed.prototype = Object.create(thoonkmodule.ThoonkBaseObject.prototype);
 Feed.prototype.constructor = Feed;
 Feed.prototype.objtype = 'feed';
 Feed.prototype.scriptdir = __dirname + '/scripts/feed';
