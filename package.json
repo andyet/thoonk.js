@@ -1,6 +1,6 @@
 {
   "name": "thoonk",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Thoonk is a persistent (and fast!) system for push feeds, queues, and jobs which leverages Redis. Thoonk follows a contract (schema + behavior) to allow multiple languages and custom implementations to interact reliably.",
   "keywords": [
     "redis",
@@ -27,6 +27,7 @@
     "sorted_feed.js",
     "testall.js",
     "thoonk.js",
+    "recurring.js",
     "tests",
     "examples",
     "LICENSE",
