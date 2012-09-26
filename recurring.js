@@ -19,6 +19,10 @@ Recurring.prototype.scriptdir = __dirname + '/scripts/recurring';
         return this.runscript('create', [config], callback);
     };
 
+    this.exists = function(callback) {
+        return this.runscript('exists', [], callback);
+    };
+
     this.add = function(task, callback) {
         return this.runscript('add', [task, Date.now().toString()], callback);
     };
