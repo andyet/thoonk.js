@@ -1,7 +1,7 @@
 -- ARGV: name, curtime
 local name, curtime = unpack(ARGV);
 
-local r = redis.call('zrevrange', 'recurring:'..name, 0, 0, 'WITHSCORES');
+local r = redis.call('zrange', 'recurring:'..name, 0, 0, 'WITHSCORES');
 if(#r == 2) then
     if(r[2] > curtime) then
         return {"NOTYET", false, r[2]};
