@@ -9,5 +9,5 @@
     "files": ["feed.js", "job.js", "queue.js", "sorted_feed.js", "testall.js", "thoonk.js", "tests", "examples", "LICENSE", "README.md", "contract.txt", "testconfig.json"],
     "main": "./thoonk.js",
     "repository": {"type": "git", "url": "http://github.com/fritzy/thoonk.js.git"}, 
-    "dependencies": {"node-uuid": ">=1.1.0", "redis": ">=0.5.5", "padlock": ">=1.0.0"}
+    "dependencies": {"node-uuid": "1.4.0", "redis": "0.6.7", "padlock": "1.1.2"}
 }
