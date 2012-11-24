@@ -6,6 +6,7 @@ var redis = require('redis'),
 
 var Thoonk = function(host, port) {
     EventEmitter.call(this);
+    this.setMaxListeners(1000);
 
 
     this.host = host || 'localhost';
@@ -30,6 +31,8 @@ var Thoonk = function(host, port) {
 
     this.subscriptions = {};
 
+    this.sub_counts = {};
+
     this.objects = {};
 
     this._blocking = {};
@@ -49,6 +52,17 @@ Thoonk.prototype.constructor = Thoonk;
                 this._blocking[key].quit();
             }
         }
+    };
+
+    this.unsubscribeInstance = function (sub) {
+        this.sub_counts--;
+        if(this.sub_counts < 1) {
+            for (var sidx in this.subscriptions[subs]) {
+                this.lredis.unsubscribe(this.subscriptions[subs][sidx]);
+            }
+        }
+        delete this.subscirptions[sub];
+        delete this.sub_counts[sub];
     };
 
     this.registerType = function(objname, theobject, callback, type) {
@@ -110,6 +124,7 @@ Thoonk.prototype.constructor = Thoonk;
 
 var Subscription = function(thoonkobject, instance, event_handler, callback) {
     EventEmitter.call(this);
+    this.setMaxListeners(100);
     this.thoonk = thoonkobject.thoonk;
     this.instance = instance;
     this.callback = callback;
@@ -150,12 +165,14 @@ Subscription.prototype.constructor = Subscription;
                 }
             }.bind(this));
             this.thoonk.subscriptions[this.sub] = this.subscribables;
+            this.thoonk.sub_counts[this.sub] = 1;
             for(var subscribable in this.subscribables) {
                 if(!this.thoonk.lredis.subscription_set['sub ' + this._build_event(this.subscribables[subscribable])]) {
                     this.thoonk.lredis.subscribe(this._build_event(this.subscribables[subscribable]));
                 }
             }
         } else {
+            this.thoonk.sub_counts[this.sub]++;
             this.emit('subscribe_ready');
                 if(this.callback) { 
                     process.nextTick(this.callback);
@@ -178,6 +195,17 @@ Subscription.prototype.constructor = Subscription;
         } 
         this.emit(this._parse_channel(channel), msg);
         this.emit('all', this._parse_channel(channel), msg);
+    };
+
+    this.quit = function (event_handler) {
+        this.thoonk.unsubscribeInstance(this.sub);
+        this.removeAllListeners();
+        for(var subscribable in this.subscribables) {
+            if(typeof event_handler != "undefined") {
+                this.thoonk.removeListener(this._build_event(this.subscribables[subscribable]), event_handler);
+            }
+            this.thoonk.removeListener(this._build_event(this.subscribables[subscribable]), this.handle_event);
+        }
     };
 
 }).call(Subscription.prototype);
@@ -228,6 +256,12 @@ ThoonkBaseObject.constructor = ThoonkBaseObject;
             };
         }.bind(this));
     };
+
+    this.quit = function() {
+        if (this.subscription) {
+            this.subscription.quit(this.handle_event.bind(this));
+        }
+    }
 
 }).call(ThoonkBaseObject.prototype);
 
