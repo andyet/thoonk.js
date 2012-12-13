@@ -4,7 +4,8 @@
  */
 
 var Feed = require("./feed.js").Feed,
-    uuid = require("node-uuid");
+    uuid = require("node-uuid"),
+    redis = require("redis");
 
 /**
  * A Thoonk queue is a typical FIFO structure, but with an
@@ -61,9 +62,9 @@ function queuePublish(item, callback, priority) {
     id = uuid();
     var multi = this.mredis.multi();
     if(priority) {
-        multi.lpush("feed.ids:" + this.name, id);
-    } else {
         multi.rpush("feed.ids:" + this.name, id);
+    } else {
+        multi.lpush("feed.ids:" + this.name, id);
     }
     multi.hset("feed.items:" + this.name, id, item);
     multi.incr("feed.publishes:" + this.name);
