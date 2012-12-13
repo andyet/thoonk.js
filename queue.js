@@ -4,7 +4,8 @@
  */
 
 var Feed = require("./feed.js").Feed,
-    uuid = require("node-uuid");
+    uuid = require("node-uuid"),
+    redis = require("redis");
 
 /**
  * A Thoonk queue is a typical FIFO structure, but with an
