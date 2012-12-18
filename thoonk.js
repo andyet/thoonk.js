@@ -61,7 +61,7 @@ Thoonk.prototype.constructor = Thoonk;
                 this.lredis.unsubscribe(this.subscriptions[subs][sidx]);
             }
         }
-        delete this.subscirptions[sub];
+        delete this.subscriptions[sub];
         delete this.sub_counts[sub];
     };
 
