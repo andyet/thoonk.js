@@ -74,17 +74,17 @@ Or, you can use:
 
 ## Creating a Feed ##
 
-    feed = thoonk.feed(feed_name, {"max_length": 50})
+    feed = thoonk.objects.Feed('feed_name');
     //will create a feed if it doesn't exist -- config optional.
-    feed.once("ready", function() {
+    feed.once("subscribe_ready", function() {
         //manipulate the feed
     });
 
 The same is true for queues, jobs, and sorted feeds:
     
-    test_queue = thoonk.queue('queue name');
-    test_job = thoonk.job('job channel name');
-    test_list = thoonk.sortedFeed('sorted feed name');
+    test_queue = thoonk.objects.Queue('queue_name');
+    test_job = thoonk.objects.Job('job_name');
+    test_list = thoonk.objects.SortedFeed('sorted_feed_name');
 
 ## Re-configuring a Feed ##
 
