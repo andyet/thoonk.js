@@ -1,50 +1,37 @@
 {
-  "name": "thoonk",
-  "version": "0.8.0",
-  "description": "Thoonk is a persistent (and fast!) system for push feeds, queues, and jobs which leverages Redis. Thoonk follows a contract (schema + behavior) to allow multiple languages and custom implementations to interact reliably.",
-  "keywords": [
-    "redis",
-    "job",
-    "feed",
-    "queue",
-    "publish",
-    "subscribe",
-    "push",
-    "live",
-    "cluster"
-  ],
-  "homepage": "thoonk.com",
-  "author": {
-    "name": "Nathan Fritz",
-    "email": "nathan@andyet.net",
-    "url": "http://andyet.net/team/nathan"
-  },
-  "contributors": [],
-  "files": [
-    "feed.js",
-    "job.js",
-    "queue.js",
-    "sorted_feed.js",
-    "testall.js",
-    "recurring.js",
-    "thoonk.js",
-    "recurring.js",
-    "tests",
-    "examples",
-    "LICENSE",
-    "README.md",
-    "contract.txt",
-    "testconfig.json",
-    "scripts"
-  ],
-  "main": "./thoonk.js",
-  "repository": {
-    "type": "git",
-    "url": "http://github.com/fritzy/thoonk.js.git"
-  },
-  "dependencies": {
-    "node-uuid": ">=1.1.0",
-    "hiredis": ">=0.1.14",
-    "redis": "~0.7.2"
-  }
+    "name": "thoonk",
+    "version": "1.0.0",
+    "description": "Thoonk is a persistent (and fast!) system for push feeds, queues, and jobs which leverages Redis. Thoonk follows a contract (schema + behavior) to allow multiple languages and custom implementations to interact reliably.",
+    "keywords": [
+        "redis",
+        "job",
+        "feed",
+        "queue",
+        "publish",
+        "subscribe",
+        "push",
+        "live",
+        "cluster"
+    ],
+    "homepage": "https://github.com/andyet/thoonk.js",
+    "author": {
+        "name": "Nathan Fritz",
+        "email": "nathan@andyet.net",
+        "url": "http://andyet.net/team/nathan"
+    },
+    "contributors": [],
+    "main": "index.js",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/andyet/thoonk.js.git"
+    },
+    "dependencies": {
+        "async": "0.2.9",
+        "node-uuid": "1.4.0",
+        "hiredis": "0.1.15",
+        "redis": "0.8.4"
+    },
+    "devDependencies": {
+        "precommit-hook": "0.3.5"
+    }
 }
