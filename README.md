@@ -85,6 +85,10 @@ thoonk.registerInterface('HelloWorld', HelloWorld, function () {
 });
 ```
 
+## Addons
+
+- [Thoonk Jobs](https://github.com/fritzy/thoonk-jobs.js) - A Thoonk-based Redis job system
+
 
 ## License
 
