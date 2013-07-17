@@ -23,7 +23,7 @@
     "main": "index.js",
     "repository": {
         "type": "git",
-        "url": "http://github.com/fritzy/thoonk.js.git"
+        "url": "http://github.com/andyet/thoonk.js.git"
     },
     "dependencies": {
         "async": "0.2.9",
