@@ -13,7 +13,7 @@
         "live",
         "cluster"
     ],
-    "homepage": "thoonk.com",
+    "homepage": "https://github.com/andyet/thoonk.js",
     "author": {
         "name": "Nathan Fritz",
         "email": "nathan@andyet.net",
@@ -23,7 +23,7 @@
     "main": "index.js",
     "repository": {
         "type": "git",
-        "url": "http://github.com/andyet/thoonk.js.git"
+        "url": "https://github.com/andyet/thoonk.js.git"
     },
     "dependencies": {
         "async": "0.2.9",
